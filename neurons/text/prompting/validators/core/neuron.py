@@ -48,7 +48,7 @@ Ask a follow up question.
 '''
 
 __default_follow_up_question_prompt__ = '''
-Ask a follow up question about the context using the examples as reference.
+Ask a single follow up question about the context using the examples as reference.
 '''
 
 class neuron:
@@ -324,8 +324,11 @@ class neuron:
         if not self.config.neuron.no_reward_model:
             flattened_message_for_reward = ''
             for role_i, message_i in list(zip(roles, messages)):
-                if role_i != 'system': flattened_message_for_reward += message_i.strip() + '\n'
-            full_completions_for_reward = [ 'Question: ' + flattened_message_for_reward + 'Answer: ' + comp.strip() for comp in successful_completions ]
+                if role_i == 'user': 
+                    flattened_message_for_reward += message_i.strip() + '\n'
+                elif role_i == 'context':
+                    background_message = message_i + '\n'
+            full_completions_for_reward = [ background_message+ 'Question: ' + flattened_message_for_reward + 'Answer: ' + comp.strip() for comp in successful_completions ]
             completions_for_reward = [comp.strip() for comp in successful_completions] 
             rewards = self.reward_model.reward( full_completions_for_reward, completions_for_reward,prompt = flattened_message_for_reward, difference = True, shift = self.config.neuron.reward_shift).detach().to( self.device )
             bittensor.logging.trace( 'rewards', rewards )
