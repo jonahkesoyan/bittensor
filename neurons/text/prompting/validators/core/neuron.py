@@ -513,8 +513,8 @@ class neuron:
             
             #print(question_prompt)
             for question, reward_diff in zip(successful_questions, reward_diffs.tolist()):
-                #print(f"\n=== Question score: {reward_diff}===\n")
-                #print(question)
+                print(f"\n=== Question score: {reward_diff}===\n")
+                print(question , reward_diff>0)
                 if reward_diff > 0 :
                     return question, reward_diff
 
