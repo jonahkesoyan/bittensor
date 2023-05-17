@@ -84,7 +84,7 @@ class RewardModel(nn.Module):
                     print("------------------------------")
                 answer_reward = torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(comp_rewards, dtype=torch.float32)+shift)
                 question_reward = torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(prompt_reward, dtype=torch.float32)+shift)
-                return question_reward + answer_reward
+                return answer_reward
             else:
                 for completion, f_reward in zip(full_completions, full_rewards):
                     print(completion)

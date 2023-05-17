@@ -26,7 +26,6 @@ import bittensor
 import argparse
 import bittensor as bt
 import traceback
-
 from loguru import logger
 from types import SimpleNamespace
 from typing import List, Optional, Tuple, Dict
@@ -483,13 +482,10 @@ class neuron:
 
             if reset_bootstrap_prompt:
                 bootstrap_prompt = next(self.dataset)['context'] # google_ai_dataset_place_holder
+                random_seed = random.randint()
+                seed = f'random_seed:{random_seed}'
                 
-                examples = 'Sample Questions: \n'
-                for i in range(self.config.neuron.example_questions):
-                    question = next(self.question_dataset)
-                    examples +='-' + question['question'] + '? \n'
-                
-                bootstrap_prompt = examples + '\n'  + 'context: ' + bootstrap_prompt
+                bootstrap_prompt = seed + '\n'  + 'context: ' + bootstrap_prompt
                 self.base_prompt = bootstrap_prompt
                 with open('prompt_history.txt', 'a') as file:
                     file.write("============== reset ==================" + '\n')
