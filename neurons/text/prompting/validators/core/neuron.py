@@ -482,7 +482,7 @@ class neuron:
 
             if reset_bootstrap_prompt:
                 bootstrap_prompt = next(self.dataset)['context'] # google_ai_dataset_place_holder
-                random_seed = random.randint()
+                random_seed = random.randint(0,1000)
                 seed = f'random_seed:{random_seed}'
                 
                 bootstrap_prompt = seed + '\n'  + 'context: ' + bootstrap_prompt
