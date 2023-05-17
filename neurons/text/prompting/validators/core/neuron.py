@@ -46,6 +46,11 @@ You are designed to assist with a wide range of tasks, from answering simple que
 __default_follow_up_prompt__ = '''
 Ask a follow up question.
 '''
+
+__default_follow_up_question_prompt__ = '''
+Ask a follow up question about the context using the examples as reference.
+'''
+
 class neuron:
     @classmethod
     def check_config( cls, config: 'bt.Config' ):
@@ -96,6 +101,7 @@ class neuron:
         parser.add_argument( '--neuron.name', type = str, help = 'Trials for this miner go in miner.root / (wallet_cold - wallet_hot) / miner.name ', default = 'core_prompting_validator')
         parser.add_argument( '--neuron.base_prompt', type=str, help = 'Prompt injected before a question is completed by miners on the network', default = __default_base_prompt__ )
         parser.add_argument( '--neuron.follow_up_prompt', type=str, help = 'Follow up prompt that is completed by miners on the network.', default = __default_follow_up_prompt__ )
+        parser.add_argument( '--neuron.follow_up_question_prompt', type=str, help = 'Follow up prompt that is completed by miners on the network.', default = __default_follow_up_question_prompt__ )
         parser.add_argument( '--neuron.reset_bootstrap_prompt_frequency', type=int, help = 'How frequent to use the base follow up question.', default = 3 )
         parser.add_argument( '--neuron.question_prompt', type=str, help = 'Prompt used to generate questions from the network whicha are used to evaluate other miners.', default = __default_question_prompt__ )
         parser.add_argument( '--neuron.reward_model_name', type = str, help = 'GPTRewardModel name', default = 'Dahoas/gpt2-rm-static')
@@ -485,11 +491,13 @@ class neuron:
                 with open('prompt_history.txt', 'a') as file:
                     file.write("============== reset ==================" + '\n')
                     file.write(f"bootstrap prompt: {bootstrap_prompt}" + '\n')
+                
+                question_prompt = f"{bootstrap_prompt}\n\n{self.config.neuron.follow_up_question_prompt}"
                         
             else:
                 bootstrap_prompt = bootstrap_prompt.replace('As an AI language model, ', '') 
             
-            question_prompt = f"{bootstrap_prompt}\n\n{self.config.neuron.follow_up_prompt}"
+                question_prompt = f"{bootstrap_prompt}\n\n{self.config.neuron.follow_up_prompt}"
             
             questions = self.dendrite_pool(
                 roles = ['user'], 
