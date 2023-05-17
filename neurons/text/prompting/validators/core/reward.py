@@ -43,7 +43,7 @@ class RewardModel(nn.Module):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.PAD_ID = self.tokenizer(self.tokenizer.pad_token)["input_ids"][0]
 
-    def reward( self, full_completions: List[str],  comp: List[str], difference=False, shift =3) -> torch.FloatTensor:
+    def reward( self, full_completions: List[str],  comp: List[str], prompt, difference=False, shift =3) -> torch.FloatTensor:
         def reward_fn( samples ):
             if samples is None: return 0
             scores_list = []
@@ -71,6 +71,7 @@ class RewardModel(nn.Module):
             return scores
         
         with torch.no_grad():
+            prompt_reward = reward_fn([prompt])
             full_rewards = [reward_fn([completion]) for completion in full_completions]
             if difference:
 
@@ -78,9 +79,12 @@ class RewardModel(nn.Module):
                 for f_reward,f_comp, c_reward in zip(full_rewards, full_completions, comp_rewards):
                     print("------------------------------")
                     print(f_comp)
-                    print(f_reward, c_reward)
+                    print(f_reward, c_reward, prompt_reward)
+                    print(f_reward- prompt_reward, f_reward-c_reward )
                     print("------------------------------")
-                return torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(comp_rewards, dtype=torch.float32)+shift)
+                answer_reward = torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(comp_rewards, dtype=torch.float32)+shift)
+                question_reward = torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(prompt_reward, dtype=torch.float32)+shift)
+                return question_reward + answer_reward
             else:
                 for completion, f_reward in zip(full_completions, full_rewards):
                     print(completion)
