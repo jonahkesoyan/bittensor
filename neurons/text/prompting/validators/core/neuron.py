@@ -277,7 +277,7 @@ class neuron:
         # Format the messages for the query.
         unravelled_message = ''
         for role, message in list(zip( roles, messages )):
-            if role == 'system': unravelled_message += 'system: ' + message + '\n'
+            if role == 'context': unravelled_message += 'context: ' + message + '\n'
             if role== 'assistant': unravelled_message += 'assistant: ' + message + '\n'
             if role == 'user': unravelled_message += 'user: ' + message + '\n'
 
@@ -402,7 +402,7 @@ class neuron:
         for message_dict in messages:
             roles.append( message_dict['role'] )
             contents.append( message_dict['content'] )
-            if message_dict['role'] == 'system': unravelled_message += 'system: ' + message_dict['content'] + '\n'
+            if message_dict['role'] == 'context': unravelled_message += 'context: ' + message_dict['content'] + '\n'
             if message_dict['role'] == 'assistant': unravelled_message += 'assistant: ' + message_dict['content'] + '\n'
             if message_dict['role'] == 'user': unravelled_message += 'user: ' + message_dict['content'] + '\n'
         bittensor.logging.info( 'inference message', str(unravelled_message) )
@@ -561,7 +561,7 @@ class neuron:
                     file.write(f"{steps} | Q score({round(reward_diff , 4)}): {prompt}" + '\n')
                 
                 forward_result = self.forward( 
-                    roles = ['system', 'user' ],
+                    roles = ['context', 'user' ],
                     messages = [ self.base_prompt, prompt ],
                     topk = self.config.neuron.training_topk,
                     random_sample_uids = True,
