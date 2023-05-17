@@ -76,8 +76,10 @@ class RewardModel(nn.Module):
 
                 comp_rewards = [reward_fn([completion]) for completion in comp]
                 for f_reward,f_comp, c_reward in zip(full_rewards, full_completions, comp_rewards):
-                    print(f_reward, c_reward)
+                    print("------------------------------")
                     print(f_comp)
+                    print(f_reward, c_reward)
+                    print("------------------------------")
                 return torch.nn.functional.relu(torch.tensor(full_rewards, dtype=torch.float32)+shift) - torch.nn.functional.relu(torch.tensor(comp_rewards, dtype=torch.float32)+shift)
             else:
                 for completion, f_reward in zip(full_completions, full_rewards):

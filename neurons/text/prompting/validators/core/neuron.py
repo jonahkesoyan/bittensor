@@ -493,12 +493,12 @@ class neuron:
                     file.write("============== reset ==================" + '\n')
                     file.write(f"bootstrap prompt: {bootstrap_prompt}" + '\n')
                 
-                question_prompt = f"{bootstrap_prompt}\n\n{self.config.neuron.follow_up_question_prompt}"
+                question_prompt = f"{bootstrap_prompt}\n{self.config.neuron.follow_up_question_prompt}"
                         
             else:
                 bootstrap_prompt = bootstrap_prompt.replace('As an AI language model, ', '') 
             
-                question_prompt = f"{bootstrap_prompt}\n\n{self.config.neuron.follow_up_prompt}"
+                question_prompt = f"{bootstrap_prompt}\n{self.config.neuron.follow_up_prompt}"
             
             questions = self.dendrite_pool(
                 roles = ['user'], 
@@ -508,14 +508,14 @@ class neuron:
             )
             
             successful_questions = [question.completion for question in questions if question is not None and question.completion is not None and len(question.completion) > 10]
-            full_completions_for_reward = [ question_prompt +'\n Question:' + comp.strip() for comp in successful_questions ]
+            full_completions_for_reward = [ question_prompt +'Question:' + comp.strip() for comp in successful_questions ]
             completions_for_reward = [comp.strip() for comp in successful_questions] 
             reward_diffs = self.reward_model.reward( full_completions_for_reward, completions_for_reward, difference = True, shift = self.config.neuron.reward_shift).to( self.device )
             
-            print(question_prompt)
+            #print(question_prompt)
             for question, reward_diff in zip(successful_questions, reward_diffs.tolist()):
-                print(f"\n=== Question score: {reward_diff}===\n")
-                print(question)
+                #print(f"\n=== Question score: {reward_diff}===\n")
+                #print(question)
                 if reward_diff > 0 :
                     return question, reward_diff
 
