@@ -293,6 +293,7 @@ class neuron:
 
         # We run the gating network here to get the best uids
         # Use the gating model to generate scores for each `uid`.
+        print(unravelled_message)
         scores = self.gating_model( unravelled_message ).to( self.device )
         bittensor.logging.trace( 'scores', scores )
 
