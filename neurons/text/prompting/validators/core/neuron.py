@@ -47,7 +47,7 @@ Ask a follow up question.
 '''
 
 __default_follow_up_question_prompt__ = '''
-Ask a single follow up question about the context using the examples as reference.
+Ask a single follow up question.
 '''
 
 class neuron:
