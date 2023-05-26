@@ -273,6 +273,7 @@ class prompting ( torch.nn.Module ):
         self,
         wallet_name: str = "default",
         hotkey: str = default_prompting_validator_key,
+        wallet_hotkey: str= '',
         subtensor_: Optional['Subtensor'] = None,
         axon_: Optional['axon_info'] = None,
         use_coldkey: bool = False
@@ -283,7 +284,7 @@ class prompting ( torch.nn.Module ):
         if use_coldkey:
             self._keypair = wallet( name = wallet_name ).create_if_non_existent().coldkey
         else:
-            self._keypair = wallet( name = wallet_name ).create_if_non_existent().hotkey
+            self._keypair = wallet( name = wallet_name ,hotkey=wallet_hotkey).hotkey
 
         if axon_ is not None:
             self._axon = axon_
