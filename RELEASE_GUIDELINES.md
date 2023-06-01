@@ -1,7 +1,8 @@
 # Release Guidelines
 
-The release manager in charge can release a Bittensor version using two scripts:
+The release manager in charge can release a Bittensor version using three scripts:
   - [./scripts/release/versioning.sh](./scripts/release/versioning.sh)
+  - [./scripts/release/](./scripts/release/add_notes_changelog.sh)
   - [./scripts/release/release.sh](./scripts/release/release.sh)
 
 The release manager will need the right permissions for:
@@ -18,18 +19,31 @@ If you are new in this role, ask for the proper setup you need to run this proce
   1. Update the version executing:`./scripts/release/versioning.sh --update UPDATE_TYPE`
     1. **UPDATE_TYPE** could be *major*, *minor* or *patch*.
   1. Add release notes to CHANGELOG executing: `./scripts/release/add_notes_changelog.sh -A -V NEW_VERSION -P PREVIOUS_TAG -T GH_ACCESS_TOKEN`
-    1. **NEW_VERSION**: e.g.: 3.6.4
-    1. **PREVIOUS_TAG**: e.g.: v3.6.3
-    1. **GH_ACCESS_TOKEN**: A github [personal access token](https://docs.github.com/en/enterprise-server@3.4/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) you need. 
+        1. **NEW_VERSION**: e.g.: 3.6.4
+        1. **PREVIOUS_TAG**: e.g.: v3.6.3
+        1. [**GH_ACCESS_TOKEN**](#Github-token): A github [personal access token](https://docs.github.com/en/enterprise-server@3.4/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) you need. 
 
 1. Test the release branch and verify that it meets the requirements.
+1. Merge the release branch into master.
 1. After merging the release branch; Run the release script
+1. After running release script, update [cubit](https://github.com/opentensor/cubit).
+    - See [Update Cubit](#Update-Cubit)
+1. [Check](#Checking-release) the release.
+
 
 ## Versioning script usage
 
 Options:
   - -U, --update: type of update. It could be major, minor, patch or rc (release candidate).
   - -A, --apply: This specify to apply the release. Without this the versioning will just show a dry run with no changes.
+
+## Changelog script usage
+
+Options:
+  - -A, --apply: This specify to apply the release. Without this the `CHANGELOG` will just show a dry run with no changes.
+  - -V --version: This specifies the `NEW_VERSION` you wish to update to.
+  - -P --previous: This specifies the previous release tag, `PREVIOUS_TAG`
+  - -T --github-token: A github personal access token to interact with the Github API. `GH_ACCESS_TOKEN`
 
 ## Release script usage
 
@@ -53,7 +67,7 @@ GITHUB_ACCESS_TOKEN=$(whatever you need to get the token safely)
 
 ### Executions
 
-So, executing the script to release a minor version will be:
+Executing the script to release a minor version will look like:
 
 ```
 # For a dry run
@@ -73,10 +87,8 @@ After the execution of the release script we would have generated:
   - A new pip package in [pypi.org](https://pypi.org/project/bittensor/#history)
   - A new docker image in [hub.docker.com](https://hub.docker.com/r/opentensorfdn/bittensor/tags)
 
-## After release
+Ensure these are correct and there were no errors encountered in running the release script.
 
-After a Bittensor release we have to
-- Update [cubit](https://github.com/opentensor/cubit).
 
 ### Updating cubit
 
