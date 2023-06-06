@@ -17,14 +17,13 @@
 
 import os
 import time
-import copy
 import torch
 import threading
 import argparse
 import bittensor
 
 from rich import print
-from typing import List, Dict, Union, Tuple, Optional
+from typing import Union, Tuple
 from datetime import datetime
 
 class BaseMinerNeuron:
@@ -107,8 +106,8 @@ class BaseMinerNeuron:
         self.wallet = bittensor.wallet( self.config )
         self.metagraph = self.subtensor.metagraph( self.config.netuid )
         self.axon = bittensor.axon( wallet = self.wallet, config = self.config )
-        self.blacklister = bittensor.blacklist( config = self.config.neuron.blacklist )
-        self.prioritizer = bittensor.priority( config = self.config.neuron.priority )
+        self.blacklister = bittensor.blacklist( config = self.config.neuron )
+        self.prioritizer = bittensor.priority( config = self.config.neuron )
 
         # Used for backgounr process.
         self.is_running = False
@@ -155,6 +154,7 @@ class BaseMinerNeuron:
 
         # --- Run Forever.
         last_update = self.subtensor.get_current_block()
+        retries = 0
         while not self.should_exit:
 
             # --- Wait until next epoch.
@@ -166,8 +166,23 @@ class BaseMinerNeuron:
             last_update = self.subtensor.get_current_block()
 
             # --- Update the metagraph with the latest network state.
-            self.metagraph.sync( lite = True )
-            uid = self.metagraph.hotkeys.index( self.wallet.hotkey.ss58_address )
+            try:
+                self.metagraph.sync( lite = True )
+                uid = self.metagraph.hotkeys.index( self.wallet.hotkey.ss58_address )
+            except:
+                # --- If we fail to sync the metagraph, wait and try again.
+                if(retries > 8):
+                    bittensor.logging.error( f'Failed to sync metagraph, exiting.')
+                    self.stop()
+                    break 
+                seconds_to_sleep = 5 * 1.5**(retries)
+                bittensor.logging.error( f'Failed to sync metagraph, retrying in {seconds_to_sleep} seconds.')
+                time.sleep( seconds_to_sleep )
+                retries += 1
+                continue
+
+            if(retries > 0):
+                retries = 0
 
             # --- Log performance.
             print(

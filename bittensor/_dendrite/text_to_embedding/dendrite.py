@@ -16,6 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 import torch
 import bittensor
+import json
 from typing import Callable, List, Dict, Union
 
 class TextToEmbeddingForwardCall( bittensor.DendriteCall ):
@@ -31,13 +32,14 @@ class TextToEmbeddingForwardCall( bittensor.DendriteCall ):
         timeout: float = bittensor.__blocktime__,
     ):
         super().__init__( dendrite = dendrite, timeout = timeout )
-        self.text = text
-        
+        self.text = [text] if isinstance(text, str) else text # Check if we get a single string or a list
+        self.packed_text = [json.dumps( text ) for text in self.text]
+    
     def get_callable( self ) -> Callable:
         return bittensor.grpc.TextToEmbeddingStub( self.dendrite.channel ).Forward
 
     def get_request_proto( self ) -> bittensor.proto.ForwardTextToEmbeddingRequest:
-        return bittensor.proto.ForwardTextToEmbeddingRequest( text = self.text )
+        return bittensor.proto.ForwardTextToEmbeddingRequest( text = self.packed_text )
     
     def apply_response_proto( self, response_proto: bittensor.proto.ForwardTextToEmbeddingResponse ):
         self.embedding = bittensor.serializer().deserialize( response_proto.embedding )
@@ -59,7 +61,7 @@ class TextToEmbeddingDendrite( bittensor.Dendrite ):
         forward_call = TextToEmbeddingForwardCall(
             dendrite = self, 
             timeout = timeout,
-            text=text
+            text = text
         )
         response_call = self.loop.run_until_complete( self.apply( dendrite_call = forward_call ) )
         if return_call: return response_call
