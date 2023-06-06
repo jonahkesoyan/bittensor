@@ -9,11 +9,11 @@ import base64
 
 hotkey = 'asdasd'
 
-text = "mdjrny-v4 style Pepe the frog enormous, surrounded by colorful sea creatures and plants, - surreal, Dreamlike, ethereal lighting, Highly detailed, Intricate, Digital painting, Artstation, Concept art, Smooth, Sharp focus, Fantasy, trending on art websites, art by magali villeneuve and jock and ashley wood and rachel lee and loish"
+text = """Realistic, Photography, human-like, sony alpha, lossless quality, realistic beautiful witch, ornate rococo styled skimpwear robe, fit and attractive, short beautiful voluminous hair with huge soft chest, alluring pose in front of her fans, full body shot photo composition, beautiful legs and armor, hyper realistic photography, Masterpiece, superrealism, realistic face, realistic hair, realistic eyes, realistic characters, realistic environment, realistic body, realistic physiology, realistic detailed, stunning realistic photo of a realistic dramatic character, hight quality, best quality, fusion between jeremy mann and childe hassam and daniel f gerhartz and rosa bonheur and thomas eakins, by lucian freud and candido portinari and charlie bowater, by wes anderson, Cinematic, smooth skin, flawless complexion, uplight, illuminating, nice shot, fine detail, CinemaHelper, PhotoHelper, 16K, gfpgan, trending on pexels, fullbody"""
 
 
 # open image from path and be PIL.Image
-image = Image.open('/home/carro/pepe.jpg')
+image = Image.open('/home/carro/moebius.png')
 
 buffered = BytesIO()
 image.save(buffered, format="PNG")  # You can use "PNG" if you prefer
@@ -22,9 +22,9 @@ image.save(buffered, format="PNG")  # You can use "PNG" if you prefer
 image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 data = { 
   "text": text,
-  "image": image_base64,
-  # "height": 768, # anything less than 512x512 causes image degradation
-  # "width": 512,
+  # "image": image_base64,
+  "height": 768, # anything less than 512x512 causes image degradation
+  "width": 512,
   "timeout": 120,
   "num_images_per_prompt": 1,
   "num_inference_steps": 30,
