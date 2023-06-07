@@ -155,6 +155,7 @@ class metagraph( torch.nn.Module ):
             self.bonds = torch.nn.Parameter( torch.stack( bonds_array ), requires_grad=False ) if len( bonds_array ) else torch.nn.Parameter()
             if len(bonds_array) == 0:
                 bittensor.logging.warning("Empty bonds_array on metagraph.sync(). The 'bonds' tensor is empty.")
+        return self
 
     def save( self ) -> 'metagraph':
         r""" Saves this metagraph object's state_dict under bittensor root dir."""
