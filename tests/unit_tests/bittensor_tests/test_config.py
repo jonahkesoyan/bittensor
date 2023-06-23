@@ -28,6 +28,7 @@ def test_loaded_config():
     with pytest.raises(NotImplementedError):
         bittensor.Config(loaded_config=True)
 
+
 def test_strict():
     parser = argparse.ArgumentParser()
 
@@ -37,18 +38,19 @@ def test_strict():
     # is no positional argument and this raises an exception when we try to parse the args later.
     # parser.add_argument("arg", help="Dummy Args")
     parser.add_argument("--cov", help="Dummy Args")
-    parser.add_argument("--cov-append", action='store_true', help="Dummy Args")
-    parser.add_argument("--cov-config",  help="Dummy Args")
-    #bittensor.Dendrite.add_args( parser )
-    bittensor.logging.add_args( parser )
-    bittensor.wallet.add_args( parser )
-    bittensor.subtensor.add_args( parser )
-    #bittensor.metagraph.add_args( parser )
-    bittensor.dataset.add_args( parser )
-    bittensor.axon.add_args( parser )
-    #bittensor.wandb.add_args( parser )
-    bittensor.config( parser, strict=False)
-    bittensor.config( parser, strict=True)
+    parser.add_argument("--cov-append", action="store_true", help="Dummy Args")
+    parser.add_argument("--cov-config", help="Dummy Args")
+    # bittensor.Dendrite.add_args( parser )
+    bittensor.logging.add_args(parser)
+    bittensor.wallet.add_args(parser)
+    bittensor.subtensor.add_args(parser)
+    # bittensor.metagraph.add_args( parser )
+    bittensor.dataset.add_args(parser)
+    bittensor.axon.add_args(parser)
+    # bittensor.wandb.add_args( parser )
+    bittensor.config(parser, strict=False)
+    bittensor.config(parser, strict=True)
+
 
 def test_prefix():
     # Test the use of prefixes to instantiate all of the bittensor objects.
@@ -66,84 +68,90 @@ def test_prefix():
         ),
     )
 
-    #bittensor.dendrite.add_args( parser)
-    #bittensor.dendrite.add_args( parser, prefix = 'second' )
+    # bittensor.dendrite.add_args( parser)
+    # bittensor.dendrite.add_args( parser, prefix = 'second' )
 
-    bittensor.logging.add_args( parser )
-    bittensor.logging.add_args( parser, prefix = 'second' )
+    bittensor.logging.add_args(parser)
+    bittensor.logging.add_args(parser, prefix="second")
 
-    bittensor.wallet.add_args( parser )
-    bittensor.wallet.add_args( parser, prefix = 'second' )
+    bittensor.wallet.add_args(parser)
+    bittensor.wallet.add_args(parser, prefix="second")
 
-    bittensor.subtensor.add_args( parser )
-    bittensor.subtensor.add_args( parser, prefix = 'second'  )
+    bittensor.subtensor.add_args(parser)
+    bittensor.subtensor.add_args(parser, prefix="second")
 
-    #bittensor.metagraph.add_args( parser )
-    #bittensor.metagraph.add_args( parser, prefix = 'second' )
+    # bittensor.metagraph.add_args( parser )
+    # bittensor.metagraph.add_args( parser, prefix = 'second' )
 
-    bittensor.dataset.add_args( parser )
-    bittensor.dataset.add_args( parser, prefix = 'second' )
+    bittensor.dataset.add_args(parser)
+    bittensor.dataset.add_args(parser, prefix="second")
 
-    bittensor.axon.add_args( parser )
-    bittensor.axon.add_args( parser, prefix = 'second' )
+    bittensor.axon.add_args(parser)
+    bittensor.axon.add_args(parser, prefix="second")
 
-    #bittensor.wandb.add_args( parser )
-    #bittensor.wandb.add_args( parser, prefix = 'second' )
+    # bittensor.wandb.add_args( parser )
+    # bittensor.wandb.add_args( parser, prefix = 'second' )
 
-    config_non_strict = bittensor.config( parser, strict=False)
-    config_strict = bittensor.config( parser, strict=True)
+    config_non_strict = bittensor.config(parser, strict=False)
+    config_strict = bittensor.config(parser, strict=True)
 
-    #bittensor.dendrite( config_strict ).__del__()
-    #bittensor.dendrite( config_non_strict ).__del__()
-    #bittensor.dendrite( config_strict.second ).__del__()
-    #bittensor.dendrite( config_non_strict.second ).__del__()
+    # bittensor.dendrite( config_strict ).__del__()
+    # bittensor.dendrite( config_non_strict ).__del__()
+    # bittensor.dendrite( config_strict.second ).__del__()
+    # bittensor.dendrite( config_non_strict.second ).__del__()
 
-    bittensor.axon( metagraph=None, wallet=mock_wallet, config=config_strict ).stop()
-    bittensor.axon( metagraph=None, wallet=mock_wallet, config=config_non_strict ).stop()
-    bittensor.axon( metagraph=None, wallet=mock_wallet, config=config_strict.second ).stop()
-    bittensor.axon( metagraph=None, wallet=mock_wallet, config=config_non_strict.second ).stop()
+    bittensor.axon(metagraph=None, wallet=mock_wallet, config=config_strict).stop()
+    bittensor.axon(metagraph=None, wallet=mock_wallet, config=config_non_strict).stop()
+    bittensor.axon(
+        metagraph=None, wallet=mock_wallet, config=config_strict.second
+    ).stop()
+    bittensor.axon(
+        metagraph=None, wallet=mock_wallet, config=config_non_strict.second
+    ).stop()
 
-    #bittensor.metagraph( config_strict )
-    #bittensor.metagraph( config_non_strict )
-    #bittensor.metagraph( config_strict.second )
-    #bittensor.metagraph( config_non_strict.second )
+    # bittensor.metagraph( config_strict )
+    # bittensor.metagraph( config_non_strict )
+    # bittensor.metagraph( config_strict.second )
+    # bittensor.metagraph( config_non_strict.second )
 
-    bittensor.wallet( config_strict )
-    bittensor.wallet( config_non_strict )
-    bittensor.wallet( config_strict.second )
-    bittensor.wallet( config_non_strict.second )
+    bittensor.wallet(config_strict)
+    bittensor.wallet(config_non_strict)
+    bittensor.wallet(config_strict.second)
+    bittensor.wallet(config_non_strict.second)
 
-    bittensor.logging( config_strict )
-    bittensor.logging( config_non_strict )
-    bittensor.logging( config_strict.second )
-    bittensor.logging( config_non_strict.second )
+    bittensor.logging(config_strict)
+    bittensor.logging(config_non_strict)
+    bittensor.logging(config_strict.second)
+    bittensor.logging(config_non_strict.second)
 
     # This is the only place we call bittensor.wandb() outside of neuron code.
     # It fails because we don't have a key set up for this.
     # TODO: Actually test bittensor.wandb
-    #bittensor.wandb( config_strict )
-    #bittensor.wandb( config_non_strict )
-    #bittensor.wandb( config_strict.second )
-    #bittensor.wandb( config_non_strict.second )
+    # bittensor.wandb( config_strict )
+    # bittensor.wandb( config_non_strict )
+    # bittensor.wandb( config_strict.second )
+    # bittensor.wandb( config_non_strict.second )
 
 
 def construct_config():
     defaults = bittensor.Config()
-    bittensor.subtensor.add_defaults( defaults )
-    #bittensor.dendrite.add_defaults( defaults )
-    bittensor.axon.add_defaults( defaults )
-    bittensor.wallet.add_defaults( defaults )
-    bittensor.dataset.add_defaults( defaults )
-    bittensor.logging.add_defaults( defaults )
-    #bittensor.wandb.add_defaults( defaults )
+    bittensor.subtensor.add_defaults(defaults)
+    # bittensor.dendrite.add_defaults( defaults )
+    bittensor.axon.add_defaults(defaults)
+    bittensor.wallet.add_defaults(defaults)
+    bittensor.dataset.add_defaults(defaults)
+    bittensor.logging.add_defaults(defaults)
+    # bittensor.wandb.add_defaults( defaults )
 
     return defaults
+
 
 def test_to_defaults():
     config = construct_config()
     config.to_defaults()
 
-if __name__  == "__main__":
+
+if __name__ == "__main__":
     # test_loaded_config()
     # test_strict()
     # test_to_defaults()

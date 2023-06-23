@@ -29,7 +29,14 @@ from bittensor.utils import U16_NORMALIZED_FLOAT, U64_MAX, RAOPERTAO, U16_MAX
 from bittensor.utils.registration import POWSolution
 
 # Local imports.
-from .chain_data import NeuronInfo, DelegateInfo, PrometheusInfo, SubnetInfo, NeuronInfoLite, axon_info
+from .chain_data import (
+    NeuronInfo,
+    DelegateInfo,
+    PrometheusInfo,
+    SubnetInfo,
+    NeuronInfoLite,
+    axon_info,
+)
 from .errors import *
 from .extrinsics.staking import add_stake_extrinsic, add_stake_multiple_extrinsic
 from .extrinsics.unstaking import unstake_extrinsic, unstake_multiple_extrinsic
@@ -38,22 +45,26 @@ from .extrinsics.registration import register_extrinsic, burned_register_extrins
 from .extrinsics.transfer import transfer_extrinsic
 from .extrinsics.set_weights import set_weights_extrinsic
 from .extrinsics.prometheus import prometheus_extrinsic
-from .extrinsics.delegation import delegate_extrinsic, nominate_extrinsic,undelegate_extrinsic
+from .extrinsics.delegation import (
+    delegate_extrinsic,
+    nominate_extrinsic,
+    undelegate_extrinsic,
+)
 from .types import AxonServeCallParams, PrometheusServeCallParams
 
 # Logging
 from loguru import logger
+
 logger = logger.opt(colors=True)
+
 
 class Subtensor:
     """
     Handles interactions with the subtensor chain.
     """
+
     def __init__(
-        self,
-        substrate: 'SubstrateInterface',
-        network: str,
-        chain_endpoint: str,
+        self, substrate: "SubstrateInterface", network: str, chain_endpoint: str
     ):
         r""" Initializes a subtensor chain interface.
             Args:
@@ -76,10 +87,10 @@ class Subtensor:
     def __str__(self) -> str:
         if self.network == self.chain_endpoint:
             # Connecting to chain endpoint without network known.
-            return "Subtensor({})".format( self.chain_endpoint )
+            return "Subtensor({})".format(self.chain_endpoint)
         else:
             # Connecting to network with endpoint known.
-            return "Subtensor({}, {})".format( self.network, self.chain_endpoint )
+            return "Subtensor({}, {})".format(self.network, self.chain_endpoint)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -89,21 +100,21 @@ class Subtensor:
     #####################
     def nominate(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         wait_for_finalization: bool = False,
-        wait_for_inclusion: bool = True
+        wait_for_inclusion: bool = True,
     ) -> bool:
         """ Becomes a delegate for the hotkey."""
         return nominate_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            wait_for_finalization = wait_for_finalization,
-            wait_for_inclusion = wait_for_inclusion
+            subtensor=self,
+            wallet=wallet,
+            wait_for_finalization=wait_for_finalization,
+            wait_for_inclusion=wait_for_inclusion,
         )
 
     def delegate(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         delegate_ss58: Optional[str] = None,
         amount: Union[Balance, float] = None,
         wait_for_inclusion: bool = True,
@@ -112,18 +123,18 @@ class Subtensor:
     ) -> bool:
         """ Adds the specified amount of stake to the passed delegate using the passed wallet. """
         return delegate_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            delegate_ss58 = delegate_ss58,
-            amount = amount,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt
+            subtensor=self,
+            wallet=wallet,
+            delegate_ss58=delegate_ss58,
+            amount=amount,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
         )
 
     def undelegate(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         delegate_ss58: Optional[str] = None,
         amount: Union[Balance, float] = None,
         wait_for_inclusion: bool = True,
@@ -132,13 +143,13 @@ class Subtensor:
     ) -> bool:
         """ Removes the specified amount of stake from the passed delegate using the passed wallet. """
         return undelegate_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            delegate_ss58 = delegate_ss58,
-            amount = amount,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt
+            subtensor=self,
+            wallet=wallet,
+            delegate_ss58=delegate_ss58,
+            amount=amount,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
         )
 
     #####################
@@ -146,14 +157,14 @@ class Subtensor:
     #####################
     def set_weights(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         netuid: int,
         uids: Union[torch.LongTensor, list],
         weights: Union[torch.FloatTensor, list],
         version_key: int = bittensor.__version_as_int__,
-        wait_for_inclusion:bool = False,
-        wait_for_finalization:bool = False,
-        prompt:bool = False
+        wait_for_inclusion: bool = False,
+        wait_for_finalization: bool = False,
+        prompt: bool = False,
     ) -> bool:
         return set_weights_extrinsic(
             subtensor=self,
@@ -166,31 +177,37 @@ class Subtensor:
             wait_for_finalization=wait_for_finalization,
             prompt=prompt,
         )
-    
+
     def _do_set_weights(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         uids: List[int],
         vals: List[int],
         netuid: int,
         version_key: int = bittensor.__version_as_int__,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
-    ) -> Tuple[bool, Optional[str]]: # (success, error_message)
+    ) -> Tuple[bool, Optional[str]]:  # (success, error_message)
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='set_weights',
-                call_params = {
-                    'dests': uids,
-                    'weights': vals,
-                    'netuid': netuid,
-                    'version_key': version_key,
-                }
+                call_module="SubtensorModule",
+                call_function="set_weights",
+                call_params={
+                    "dests": uids,
+                    "weights": vals,
+                    "netuid": netuid,
+                    "version_key": version_key,
+                },
             )
             # Period dictates how long the extrinsic will stay as part of waiting pool
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.hotkey, era={'period':100})
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.hotkey, era={"period": 100}
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True, None
@@ -204,9 +221,9 @@ class Subtensor:
     ######################
     #### Registration ####
     ######################
-    def register (
+    def register(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         netuid: int,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
@@ -222,44 +239,44 @@ class Subtensor:
     ) -> bool:
         """ Registers the wallet to chain."""
         return register_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            netuid = netuid,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt,
-            max_allowed_attempts = max_allowed_attempts,
-            output_in_place = output_in_place,
-            cuda = cuda,
-            dev_id = dev_id,
-            TPB = TPB,
-            num_processes = num_processes,
-            update_interval = update_interval,
-            log_verbose = log_verbose,
+            subtensor=self,
+            wallet=wallet,
+            netuid=netuid,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
+            max_allowed_attempts=max_allowed_attempts,
+            output_in_place=output_in_place,
+            cuda=cuda,
+            dev_id=dev_id,
+            TPB=TPB,
+            num_processes=num_processes,
+            update_interval=update_interval,
+            log_verbose=log_verbose,
         )
 
-    def burned_register (
+    def burned_register(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         netuid: int,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
-        prompt: bool = False
+        prompt: bool = False,
     ) -> bool:
         """ Registers the wallet to chain by recycling TAO."""
         return burned_register_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            netuid = netuid,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt
+            subtensor=self,
+            wallet=wallet,
+            netuid=netuid,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
         )
-    
+
     def _do_pow_register(
         self,
         netuid: int,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         pow_result: POWSolution,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
@@ -274,27 +291,35 @@ class Subtensor:
             Returns:
                 success (bool): True if the extrinsic was included in a block.
                 error (Optional[str]): None on success or not waiting for inclusion/finalization, otherwise the error message.
-        """ 
+        """
         with self.substrate as substrate:
             # create extrinsic call
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='register',
+                call_module="SubtensorModule",
+                call_function="register",
                 call_params={
-                    'netuid': netuid,
-                    'block_number': pow_result.block_number,
-                    'nonce': pow_result.nonce,
-                    'work': [int(byte_) for byte_ in pow_result.seal],
-                    'hotkey': wallet.hotkey.ss58_address,
-                    'coldkey': wallet.coldkeypub.ss58_address,
-                }
+                    "netuid": netuid,
+                    "block_number": pow_result.block_number,
+                    "nonce": pow_result.nonce,
+                    "work": [int(byte_) for byte_ in pow_result.seal],
+                    "hotkey": wallet.hotkey.ss58_address,
+                    "coldkey": wallet.coldkeypub.ss58_address,
+                },
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.hotkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion=wait_for_inclusion, wait_for_finalization=wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.hotkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
 
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
-                bittensor.__console__.print(":white_heavy_check_mark: [green]Sent[/green]")
+                bittensor.__console__.print(
+                    ":white_heavy_check_mark: [green]Sent[/green]"
+                )
                 return True, None
 
             # process if registration successful, try again if pow is still valid
@@ -304,30 +329,35 @@ class Subtensor:
             # Successful registration
             else:
                 return True, None
-            
+
     def _do_burned_register(
         self,
         netuid: int,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
     ) -> Tuple[bool, Optional[str]]:
         with self.substrate as substrate:
             # create extrinsic call
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='burned_register',
-                call_params={
-                    'netuid': netuid,
-                    'hotkey': wallet.hotkey.ss58_address
-                }
+                call_module="SubtensorModule",
+                call_function="burned_register",
+                call_params={"netuid": netuid, "hotkey": wallet.hotkey.ss58_address},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion=wait_for_inclusion, wait_for_finalization=wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
 
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
-                bittensor.__console__.print(":white_heavy_check_mark: [green]Sent[/green]")
+                bittensor.__console__.print(
+                    ":white_heavy_check_mark: [green]Sent[/green]"
+                )
                 return True
 
             # process if registration successful, try again if pow is still valid
@@ -343,7 +373,7 @@ class Subtensor:
     ##################
     def transfer(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         dest: str,
         amount: Union[Balance, float],
         wait_for_inclusion: bool = True,
@@ -352,20 +382,17 @@ class Subtensor:
     ) -> bool:
         """ Transfers funds from this wallet to the destination public key address"""
         return transfer_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            dest = dest,
-            amount = amount,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt
+            subtensor=self,
+            wallet=wallet,
+            dest=dest,
+            amount=amount,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
         )
-    
+
     def get_transfer_fee(
-        self,
-        wallet: 'bittensor.Wallet',
-        dest: str,
-        value: Union[Balance, float, int],
+        self, wallet: "bittensor.Wallet", dest: str, value: Union[Balance, float, int]
     ) -> Balance:
         if isinstance(value, float):
             transfer_balance = bittensor.Balance.from_tao(value)
@@ -374,28 +401,29 @@ class Subtensor:
 
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='Balances',
-                call_function='transfer',
-                call_params={
-                    'dest': dest,
-                    'value': transfer_balance.rao
-                }
+                call_module="Balances",
+                call_function="transfer",
+                call_params={"dest": dest, "value": transfer_balance.rao},
             )
 
             try:
-                payment_info = substrate.get_payment_info( call = call, keypair = wallet.coldkeypub )
+                payment_info = substrate.get_payment_info(
+                    call=call, keypair=wallet.coldkeypub
+                )
             except Exception as e:
-                bittensor.__console__.print(":cross_mark: [red]Failed to get payment info[/red]:[bold white]\n  {}[/bold white]".format(e))
-                payment_info = {
-                    'partialFee': 2e7, # assume  0.02 Tao
-                }
+                bittensor.__console__.print(
+                    ":cross_mark: [red]Failed to get payment info[/red]:[bold white]\n  {}[/bold white]".format(
+                        e
+                    )
+                )
+                payment_info = {"partialFee": 2e7}  # assume  0.02 Tao
 
-        fee = bittensor.Balance.from_rao( payment_info['partialFee'] )
+        fee = bittensor.Balance.from_rao(payment_info["partialFee"])
         return fee
-    
+
     def _do_transfer(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         dest: str,
         transfer_balance: Balance,
         wait_for_inclusion: bool = True,
@@ -416,18 +444,23 @@ class Subtensor:
         """
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='Balances',
-                call_function='transfer',
-                call_params={
-                    'dest': dest,
-                    'value': transfer_balance.rao
-                }
+                call_module="Balances",
+                call_function="transfer",
+                call_params={"dest": dest, "value": transfer_balance.rao},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
-                bittensor.__console__.print(":white_heavy_check_mark: [green]Sent[/green]")
+                bittensor.__console__.print(
+                    ":white_heavy_check_mark: [green]Sent[/green]"
+                )
                 return True, None, None
 
             # Otherwise continue with finalization.
@@ -438,15 +471,10 @@ class Subtensor:
             else:
                 return False, None, response.error_message
 
-    def get_existential_deposit(
-        self,
-        block: Optional[int] = None,
-    ) -> Optional[Balance]:
+    def get_existential_deposit(self, block: Optional[int] = None) -> Optional[Balance]:
         """ Returns the existential deposit for the chain. """
         result = self.query_constant(
-            module_name='Balances',
-            constant_name='ExistentialDeposit',
-            block = block,
+            module_name="Balances", constant_name="ExistentialDeposit", block=block
         )
 
         if result is None:
@@ -457,9 +485,9 @@ class Subtensor:
     #################
     #### Serving ####
     #################
-    def serve (
+    def serve(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         ip: str,
         port: int,
         protocol: int,
@@ -467,37 +495,56 @@ class Subtensor:
         placeholder1: int = 0,
         placeholder2: int = 0,
         wait_for_inclusion: bool = False,
-        wait_for_finalization = True,
+        wait_for_finalization=True,
         prompt: bool = False,
     ) -> bool:
-        return serve_extrinsic( self, wallet, ip, port, protocol, netuid , placeholder1, placeholder2, wait_for_inclusion, wait_for_finalization)
+        return serve_extrinsic(
+            self,
+            wallet,
+            ip,
+            port,
+            protocol,
+            netuid,
+            placeholder1,
+            placeholder2,
+            wait_for_inclusion,
+            wait_for_finalization,
+        )
 
-    def serve_axon (
+    def serve_axon(
         self,
         netuid: int,
-        axon: 'bittensor.Axon',
+        axon: "bittensor.Axon",
         use_upnpc: bool = False,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
         prompt: bool = False,
     ) -> bool:
-        return serve_axon_extrinsic( self, netuid, axon, use_upnpc, wait_for_inclusion, wait_for_finalization)
-    
+        return serve_axon_extrinsic(
+            self, netuid, axon, use_upnpc, wait_for_inclusion, wait_for_finalization
+        )
+
     def _do_serve_axon(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         call_params: AxonServeCallParams,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
     ):
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='serve_axon',
-                call_params=call_params
+                call_module="SubtensorModule",
+                call_function="serve_axon",
+                call_params=call_params,
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.hotkey)
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.hotkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             if wait_for_inclusion or wait_for_finalization:
                 response.process_events()
                 if response.is_success:
@@ -507,19 +554,26 @@ class Subtensor:
             else:
                 return True
 
-    def serve_prometheus (
+    def serve_prometheus(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         port: int,
         netuid: int,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
     ) -> bool:
-        return prometheus_extrinsic( self, wallet = wallet, port = port, netuid = netuid, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization)
+        return prometheus_extrinsic(
+            self,
+            wallet=wallet,
+            port=port,
+            netuid=netuid,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+        )
 
     def _do_serve_prometheus(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         call_params: PrometheusServeCallParams,
         wait_for_inclusion: bool = False,
         wait_for_finalization: bool = True,
@@ -537,12 +591,18 @@ class Subtensor:
         """
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='serve_prometheus',
-                call_params = call_params
+                call_module="SubtensorModule",
+                call_function="serve_prometheus",
+                call_params=call_params,
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.hotkey)
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.hotkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             if wait_for_inclusion or wait_for_finalization:
                 response.process_events()
                 if response.is_success:
@@ -551,13 +611,13 @@ class Subtensor:
                     return False, response.error_message
             else:
                 return True
-    
+
     #################
     #### Staking ####
     #################
     def add_stake(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         hotkey_ss58: Optional[str] = None,
         amount: Union[Balance, float] = None,
         wait_for_inclusion: bool = True,
@@ -566,18 +626,18 @@ class Subtensor:
     ) -> bool:
         """ Adds the specified amount of stake to passed hotkey uid. """
         return add_stake_extrinsic(
-            subtensor = self,
-            wallet = wallet,
-            hotkey_ss58 = hotkey_ss58,
-            amount = amount,
-            wait_for_inclusion = wait_for_inclusion,
-            wait_for_finalization = wait_for_finalization,
-            prompt = prompt
+            subtensor=self,
+            wallet=wallet,
+            hotkey_ss58=hotkey_ss58,
+            amount=amount,
+            wait_for_inclusion=wait_for_inclusion,
+            wait_for_finalization=wait_for_finalization,
+            prompt=prompt,
         )
 
-    def add_stake_multiple (
+    def add_stake_multiple(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         hotkey_ss58s: List[str],
         amounts: List[Union[Balance, float]] = None,
         wait_for_inclusion: bool = True,
@@ -585,11 +645,19 @@ class Subtensor:
         prompt: bool = False,
     ) -> bool:
         """ Adds stake to each hotkey_ss58 in the list, using each amount, from a common coldkey."""
-        return add_stake_multiple_extrinsic( self, wallet, hotkey_ss58s, amounts, wait_for_inclusion, wait_for_finalization, prompt)
-    
+        return add_stake_multiple_extrinsic(
+            self,
+            wallet,
+            hotkey_ss58s,
+            amounts,
+            wait_for_inclusion,
+            wait_for_finalization,
+            prompt,
+        )
+
     def _do_stake(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         hotkey_ss58: str,
         amount: Balance,
         wait_for_inclusion: bool = True,
@@ -609,15 +677,18 @@ class Subtensor:
         """
         with self.substrate as substrate:
             call = substrate.compose_call(
-            call_module='SubtensorModule',
-            call_function='add_stake',
-            call_params={
-                'hotkey': hotkey_ss58,
-                'amount_staked': amount.rao
-                }
+                call_module="SubtensorModule",
+                call_function="add_stake",
+                call_params={"hotkey": hotkey_ss58, "amount_staked": amount.rao},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True
@@ -631,9 +702,9 @@ class Subtensor:
     ###################
     #### Unstaking ####
     ###################
-    def unstake_multiple (
+    def unstake_multiple(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         hotkey_ss58s: List[str],
         amounts: List[Union[Balance, float]] = None,
         wait_for_inclusion: bool = True,
@@ -641,25 +712,39 @@ class Subtensor:
         prompt: bool = False,
     ) -> bool:
         """ Removes stake from each hotkey_ss58 in the list, using each amount, to a common coldkey. """
-        return unstake_multiple_extrinsic( self, wallet, hotkey_ss58s, amounts, wait_for_inclusion, wait_for_finalization, prompt)
+        return unstake_multiple_extrinsic(
+            self,
+            wallet,
+            hotkey_ss58s,
+            amounts,
+            wait_for_inclusion,
+            wait_for_finalization,
+            prompt,
+        )
 
-
-
-    def unstake (
+    def unstake(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         hotkey_ss58: Optional[str] = None,
         amount: Union[Balance, float] = None,
-        wait_for_inclusion:bool = True,
-        wait_for_finalization:bool = False,
+        wait_for_inclusion: bool = True,
+        wait_for_finalization: bool = False,
         prompt: bool = False,
     ) -> bool:
         """ Removes stake into the wallet coldkey from the specified hotkey uid."""
-        return unstake_extrinsic( self, wallet, hotkey_ss58, amount, wait_for_inclusion, wait_for_finalization, prompt )
-    
+        return unstake_extrinsic(
+            self,
+            wallet,
+            hotkey_ss58,
+            amount,
+            wait_for_inclusion,
+            wait_for_finalization,
+            prompt,
+        )
+
     def _do_unstake(
         self,
-        wallet: 'bittensor.Wallet',
+        wallet: "bittensor.Wallet",
         hotkey_ss58: str,
         amount: Balance,
         wait_for_inclusion: bool = True,
@@ -679,15 +764,18 @@ class Subtensor:
         """
         with self.substrate as substrate:
             call = substrate.compose_call(
-            call_module='SubtensorModule',
-            call_function='remove_stake',
-            call_params={
-                'hotkey': hotkey_ss58,
-                'amount_unstaked': amount.rao
-                }
+                call_module="SubtensorModule",
+                call_function="remove_stake",
+                call_params={"hotkey": hotkey_ss58, "amount_unstaked": amount.rao},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True
@@ -698,47 +786,70 @@ class Subtensor:
             else:
                 raise StakeError(response.error_message)
 
-
     ########################
     #### Standard Calls ####
     ########################
 
     """ Queries subtensor named storage with params and block. """
-    def query_subtensor( self, name: str, block: Optional[int] = None, params: Optional[List[object]] = [] ) -> Optional[object]:
+
+    def query_subtensor(
+        self,
+        name: str,
+        block: Optional[int] = None,
+        params: Optional[List[object]] = [],
+    ) -> Optional[object]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
                 return substrate.query(
-                    module='SubtensorModule',
-                    storage_function = name,
-                    params = params,
-                    block_hash = None if block == None else substrate.get_block_hash(block)
+                    module="SubtensorModule",
+                    storage_function=name,
+                    params=params,
+                    block_hash=None
+                    if block == None
+                    else substrate.get_block_hash(block),
                 )
+
         return make_substrate_call_with_retry()
 
     """ Queries subtensor map storage with params and block. """
-    def query_map_subtensor( self, name: str, block: Optional[int] = None, params: Optional[List[object]] = [] ) -> QueryMapResult:
+
+    def query_map_subtensor(
+        self,
+        name: str,
+        block: Optional[int] = None,
+        params: Optional[List[object]] = [],
+    ) -> QueryMapResult:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
                 return substrate.query_map(
-                    module='SubtensorModule',
-                    storage_function = name,
-                    params = params,
-                    block_hash = None if block == None else substrate.get_block_hash(block)
+                    module="SubtensorModule",
+                    storage_function=name,
+                    params=params,
+                    block_hash=None
+                    if block == None
+                    else substrate.get_block_hash(block),
                 )
+
         return make_substrate_call_with_retry()
 
     """ Gets a constant from subtensor with module_name, constant_name, and block. """
-    def query_constant( self, module_name: str, constant_name: str, block: Optional[int] = None ) -> Optional[object]:
+
+    def query_constant(
+        self, module_name: str, constant_name: str, block: Optional[int] = None
+    ) -> Optional[object]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
                 return substrate.get_constant(
                     module_name=module_name,
                     constant_name=constant_name,
-                    block_hash = None if block == None else substrate.get_block_hash(block)
+                    block_hash=None
+                    if block == None
+                    else substrate.get_block_hash(block),
                 )
+
         return make_substrate_call_with_retry()
 
     #####################################
@@ -746,167 +857,282 @@ class Subtensor:
     #####################################
 
     """ Returns network Rho hyper parameter """
-    def rho (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor( "Rho", block, [netuid] ).value
+
+    def rho(self, netuid: int, block: Optional[int] = None) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("Rho", block, [netuid]).value
 
     """ Returns network Kappa hyper parameter """
-    def kappa (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return U16_NORMALIZED_FLOAT( self.query_subtensor( "Kappa", block, [netuid] ).value )
+
+    def kappa(self, netuid: int, block: Optional[int] = None) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return U16_NORMALIZED_FLOAT(
+            self.query_subtensor("Kappa", block, [netuid]).value
+        )
 
     """ Returns network Difficulty hyper parameter """
-    def difficulty (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor( "Difficulty", block, [netuid] ).value
+
+    def difficulty(self, netuid: int, block: Optional[int] = None) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("Difficulty", block, [netuid]).value
 
     """ Returns network Burn hyper parameter """
-    def burn (self, netuid: int, block: Optional[int] = None ) -> Optional[bittensor.Balance]:
-        if not self.subnet_exists( netuid, block ): return None
-        return bittensor.Balance.from_rao( self.query_subtensor( "Burn", block, [netuid] ).value )
+
+    def burn(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[bittensor.Balance]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("Burn", block, [netuid]).value
+        )
 
     """ Returns network ImmunityPeriod hyper parameter """
-    def immunity_period (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ImmunityPeriod", block, [netuid] ).value
+
+    def immunity_period(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ImmunityPeriod", block, [netuid]).value
 
     """ Returns network ValidatorBatchSize hyper parameter """
-    def validator_batch_size (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ValidatorBatchSize", block, [netuid] ).value
+
+    def validator_batch_size(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ValidatorBatchSize", block, [netuid]).value
 
     """ Returns network ValidatorPruneLen hyper parameter """
-    def validator_prune_len (self, netuid: int, block: Optional[int] = None ) -> int:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ValidatorPruneLen", block, [netuid] ).value
+
+    def validator_prune_len(self, netuid: int, block: Optional[int] = None) -> int:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ValidatorPruneLen", block, [netuid]).value
 
     """ Returns network ValidatorLogitsDivergence hyper parameter """
-    def validator_logits_divergence (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return U16_NORMALIZED_FLOAT(self.query_subtensor("ValidatorLogitsDivergence", block, [netuid]).value)
+
+    def validator_logits_divergence(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return U16_NORMALIZED_FLOAT(
+            self.query_subtensor("ValidatorLogitsDivergence", block, [netuid]).value
+        )
 
     """ Returns network ValidatorSequenceLength hyper parameter """
-    def validator_sequence_length (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ValidatorSequenceLength", block, [netuid] ).value
+
+    def validator_sequence_length(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ValidatorSequenceLength", block, [netuid]).value
 
     """ Returns network ValidatorEpochsPerReset hyper parameter """
-    def validator_epochs_per_reset (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ValidatorEpochsPerReset", block, [netuid] ).value
+
+    def validator_epochs_per_reset(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ValidatorEpochsPerReset", block, [netuid]).value
 
     """ Returns network ValidatorEpochLen hyper parameter """
-    def validator_epoch_length (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("ValidatorEpochLen", block, [netuid] ).value
+
+    def validator_epoch_length(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ValidatorEpochLen", block, [netuid]).value
 
     """ Returns network ValidatorEpochLen hyper parameter """
-    def validator_exclude_quantile (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return U16_NORMALIZED_FLOAT( self.query_subtensor("ValidatorExcludeQuantile", block, [netuid] ).value )
+
+    def validator_exclude_quantile(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return U16_NORMALIZED_FLOAT(
+            self.query_subtensor("ValidatorExcludeQuantile", block, [netuid]).value
+        )
 
     """ Returns network MaxAllowedValidators hyper parameter """
-    def max_allowed_validators(self, netuid: int, block: Optional[int] = None) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor( 'MaxAllowedValidators', block, [netuid] ).value
+
+    def max_allowed_validators(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("MaxAllowedValidators", block, [netuid]).value
 
     """ Returns network MinAllowedWeights hyper parameter """
-    def min_allowed_weights (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor("MinAllowedWeights", block, [netuid] ).value
+
+    def min_allowed_weights(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("MinAllowedWeights", block, [netuid]).value
 
     """ Returns network MaxWeightsLimit hyper parameter """
-    def max_weight_limit (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return U16_NORMALIZED_FLOAT( self.query_subtensor('MaxWeightsLimit', block, [netuid] ).value )
+
+    def max_weight_limit(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return U16_NORMALIZED_FLOAT(
+            self.query_subtensor("MaxWeightsLimit", block, [netuid]).value
+        )
 
     """ Returns network ScalingLawPower hyper parameter """
-    def scaling_law_power (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('ScalingLawPower', block, [netuid] ).value / 100.
+
+    def scaling_law_power(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("ScalingLawPower", block, [netuid]).value / 100.0
 
     """ Returns network SynergyScalingLawPower hyper parameter """
-    def synergy_scaling_law_power (self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('SynergyScalingLawPower', block, [netuid] ).value / 100.
+
+    def synergy_scaling_law_power(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return (
+            self.query_subtensor("SynergyScalingLawPower", block, [netuid]).value
+            / 100.0
+        )
 
     """ Returns network SubnetworkN hyper parameter """
-    def subnetwork_n (self, netuid: int, block: Optional[int] = None ) -> int:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('SubnetworkN', block, [netuid] ).value
+
+    def subnetwork_n(self, netuid: int, block: Optional[int] = None) -> int:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("SubnetworkN", block, [netuid]).value
 
     """ Returns network MaxAllowedUids hyper parameter """
-    def max_n (self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('MaxAllowedUids', block, [netuid] ).value
+
+    def max_n(self, netuid: int, block: Optional[int] = None) -> Optional[int]:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("MaxAllowedUids", block, [netuid]).value
 
     """ Returns network BlocksSinceLastStep hyper parameter """
-    def blocks_since_epoch (self, netuid: int, block: Optional[int] = None) -> int:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('BlocksSinceLastStep', block, [netuid] ).value
+
+    def blocks_since_epoch(self, netuid: int, block: Optional[int] = None) -> int:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("BlocksSinceLastStep", block, [netuid]).value
 
     """ Returns network Tempo hyper parameter """
-    def tempo (self, netuid: int, block: Optional[int] = None) -> int:
-        if not self.subnet_exists( netuid, block ): return None
-        return self.query_subtensor('Tempo', block, [netuid] ).value
+
+    def tempo(self, netuid: int, block: Optional[int] = None) -> int:
+        if not self.subnet_exists(netuid, block):
+            return None
+        return self.query_subtensor("Tempo", block, [netuid]).value
 
     ##########################
     #### Account functions ###
     ##########################
 
     """ Returns the total stake held on a hotkey including delegative """
-    def get_total_stake_for_hotkey( self, ss58_address: str, block: Optional[int] = None ) -> Optional['bittensor.Balance']:
-        return bittensor.Balance.from_rao( self.query_subtensor( 'TotalHotkeyStake', block, [ss58_address] ).value )
+
+    def get_total_stake_for_hotkey(
+        self, ss58_address: str, block: Optional[int] = None
+    ) -> Optional["bittensor.Balance"]:
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("TotalHotkeyStake", block, [ss58_address]).value
+        )
 
     """ Returns the total stake held on a coldkey across all hotkeys including delegates"""
-    def get_total_stake_for_coldkey( self, ss58_address: str, block: Optional[int] = None ) -> Optional['bittensor.Balance']:
-        return bittensor.Balance.from_rao( self.query_subtensor( 'TotalColdkeyStake', block, [ss58_address] ).value )
+
+    def get_total_stake_for_coldkey(
+        self, ss58_address: str, block: Optional[int] = None
+    ) -> Optional["bittensor.Balance"]:
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("TotalColdkeyStake", block, [ss58_address]).value
+        )
 
     """ Returns the stake under a coldkey - hotkey pairing """
-    def get_stake_for_coldkey_and_hotkey( self, hotkey_ss58: str, coldkey_ss58: str, block: Optional[int] = None ) -> Optional['bittensor.Balance']:
-        return bittensor.Balance.from_rao( self.query_subtensor( 'Stake', block, [hotkey_ss58, coldkey_ss58] ).value )
+
+    def get_stake_for_coldkey_and_hotkey(
+        self, hotkey_ss58: str, coldkey_ss58: str, block: Optional[int] = None
+    ) -> Optional["bittensor.Balance"]:
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("Stake", block, [hotkey_ss58, coldkey_ss58]).value
+        )
 
     """ Returns a list of stake tuples (coldkey, balance) for each delegating coldkey including the owner"""
-    def get_stake( self, hotkey_ss58: str, block: Optional[int] = None ) -> List[Tuple[str,'bittensor.Balance']]:
-        return [ (r[0].value, bittensor.Balance.from_rao( r[1].value ))  for r in self.query_map_subtensor( 'Stake', block, [hotkey_ss58] ) ]
+
+    def get_stake(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> List[Tuple[str, "bittensor.Balance"]]:
+        return [
+            (r[0].value, bittensor.Balance.from_rao(r[1].value))
+            for r in self.query_map_subtensor("Stake", block, [hotkey_ss58])
+        ]
 
     """ Returns true if the hotkey is known by the chain and there are accounts. """
-    def does_hotkey_exist( self, hotkey_ss58: str, block: Optional[int] = None ) -> bool:
-        return (self.query_subtensor( 'Owner', block, [hotkey_ss58 ] ).value != "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM")
+
+    def does_hotkey_exist(self, hotkey_ss58: str, block: Optional[int] = None) -> bool:
+        return (
+            self.query_subtensor("Owner", block, [hotkey_ss58]).value
+            != "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
+        )
 
     """ Returns the coldkey owner of the passed hotkey """
-    def get_hotkey_owner( self, hotkey_ss58: str, block: Optional[int] = None ) -> Optional[str]:
-        if self.does_hotkey_exist( hotkey_ss58, block ):
-            return self.query_subtensor( 'Owner', block, [hotkey_ss58 ] ).value
+
+    def get_hotkey_owner(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> Optional[str]:
+        if self.does_hotkey_exist(hotkey_ss58, block):
+            return self.query_subtensor("Owner", block, [hotkey_ss58]).value
         else:
             return None
 
     """ Returns the axon information for this hotkey account """
-    def get_axon_info( self, hotkey_ss58: str, block: Optional[int] = None ) -> Optional[axon_info]:
-        result = self.query_subtensor( 'Axons', block, [hotkey_ss58 ] )
+
+    def get_axon_info(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> Optional[axon_info]:
+        result = self.query_subtensor("Axons", block, [hotkey_ss58])
         if result != None:
             return axon_info(
-                ip = bittensor.utils.networking.ip_from_int( result.value.ip ),
-                ip_type = result.value.ip_type,
-                port = result.value.port,
-                protocol = result.value.protocol,
-                version = result.value.version,
-                placeholder1 = result.value.placeholder1,
-                placeholder2 = result.value.placeholder2,
+                ip=bittensor.utils.networking.ip_from_int(result.value.ip),
+                ip_type=result.value.ip_type,
+                port=result.value.port,
+                protocol=result.value.protocol,
+                version=result.value.version,
+                placeholder1=result.value.placeholder1,
+                placeholder2=result.value.placeholder2,
             )
         else:
             return None
 
     """ Returns the prometheus information for this hotkey account """
-    def get_prometheus_info( self, hotkey_ss58: str, block: Optional[int] = None ) -> Optional[axon_info]:
-        result = self.query_subtensor( 'Prometheus', block, [hotkey_ss58 ] )
+
+    def get_prometheus_info(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> Optional[axon_info]:
+        result = self.query_subtensor("Prometheus", block, [hotkey_ss58])
         if result != None:
-            return PrometheusInfo (
-                ip = bittensor.utils.networking.ip_from_int( result.value.ip ),
-                ip_type = result.value.ip_type,
-                port = result.value.port,
-                version = result.value.version,
-                block = result.value.block,
+            return PrometheusInfo(
+                ip=bittensor.utils.networking.ip_from_int(result.value.ip),
+                ip_type=result.value.ip_type,
+                port=result.value.port,
+                version=result.value.version,
+                block=result.value.block,
             )
         else:
             return None
@@ -916,7 +1142,7 @@ class Subtensor:
     ###########################
 
     @property
-    def block (self) -> int:
+    def block(self) -> int:
         r""" Returns current chain block.
         Returns:
             block (int):
@@ -924,49 +1150,63 @@ class Subtensor:
         """
         return self.get_current_block()
 
-    def total_issuance (self, block: Optional[int] = None ) -> 'bittensor.Balance':
-        return bittensor.Balance.from_rao( self.query_subtensor( 'TotalIssuance', block ).value )
+    def total_issuance(self, block: Optional[int] = None) -> "bittensor.Balance":
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("TotalIssuance", block).value
+        )
 
-    def total_stake (self,block: Optional[int] = None ) -> 'bittensor.Balance':
-        return bittensor.Balance.from_rao( self.query_subtensor( "TotalStake", block ).value )
+    def total_stake(self, block: Optional[int] = None) -> "bittensor.Balance":
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("TotalStake", block).value
+        )
 
-    def serving_rate_limit (self, block: Optional[int] = None ) -> Optional[int]:
-        return self.query_subtensor( "ServingRateLimit", block ).value
-    
-    def tx_rate_limit (self, block: Optional[int] = None ) -> Optional[int]:
-        return self.query_subtensor( "TxRateLimit", block ).value
+    def serving_rate_limit(self, block: Optional[int] = None) -> Optional[int]:
+        return self.query_subtensor("ServingRateLimit", block).value
+
+    def tx_rate_limit(self, block: Optional[int] = None) -> Optional[int]:
+        return self.query_subtensor("TxRateLimit", block).value
 
     #####################################
     #### Network Parameters ####
     #####################################
 
-    def subnet_exists( self, netuid: int, block: Optional[int] = None ) -> bool:
-        return self.query_subtensor( 'NetworksAdded', block, [netuid] ).value
+    def subnet_exists(self, netuid: int, block: Optional[int] = None) -> bool:
+        return self.query_subtensor("NetworksAdded", block, [netuid]).value
 
-    def get_all_subnet_netuids( self, block: Optional[int] = None ) -> List[int]:
+    def get_all_subnet_netuids(self, block: Optional[int] = None) -> List[int]:
         subnet_netuids = []
-        result = self.query_map_subtensor( 'NetworksAdded', block )
+        result = self.query_map_subtensor("NetworksAdded", block)
         if result.records:
             for netuid, exists in result:
                 if exists:
-                    subnet_netuids.append( netuid.value )
+                    subnet_netuids.append(netuid.value)
 
         return subnet_netuids
 
-    def get_total_subnets( self, block: Optional[int] = None ) -> int:
-        return self.query_subtensor( 'TotalNetworks', block ).value
+    def get_total_subnets(self, block: Optional[int] = None) -> int:
+        return self.query_subtensor("TotalNetworks", block).value
 
-    def get_subnet_modality( self, netuid: int, block: Optional[int] = None ) -> Optional[int]:
-        return self.query_subtensor( 'NetworkModality', block, [netuid] ).value
+    def get_subnet_modality(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        return self.query_subtensor("NetworkModality", block, [netuid]).value
 
-    def get_subnet_connection_requirement( self, netuid_0: int, netuid_1: int, block: Optional[int] = None) -> Optional[int]:
-        return self.query_subtensor( 'NetworkConnect', block, [netuid_0, netuid_1] ).value
+    def get_subnet_connection_requirement(
+        self, netuid_0: int, netuid_1: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        return self.query_subtensor("NetworkConnect", block, [netuid_0, netuid_1]).value
 
-    def get_emission_value_by_subnet( self, netuid: int, block: Optional[int] = None ) -> Optional[float]:
-        return bittensor.Balance.from_rao( self.query_subtensor( 'EmissionValues', block, [ netuid ] ).value )
+    def get_emission_value_by_subnet(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[float]:
+        return bittensor.Balance.from_rao(
+            self.query_subtensor("EmissionValues", block, [netuid]).value
+        )
 
-    def get_subnet_connection_requirements( self, netuid: int, block: Optional[int] = None) -> Dict[str, int]:
-        result = self.query_map_subtensor( 'NetworkConnect', block, [netuid] )
+    def get_subnet_connection_requirements(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Dict[str, int]:
+        result = self.query_map_subtensor("NetworkConnect", block, [netuid])
         if result.records:
             requirements = {}
             for tuple in result.records:
@@ -974,185 +1214,231 @@ class Subtensor:
         else:
             return {}
 
-    def get_subnets( self, block: Optional[int] = None ) -> List[int]:
+    def get_subnets(self, block: Optional[int] = None) -> List[int]:
         subnets = []
-        result = self.query_map_subtensor( 'NetworksAdded', block )
+        result = self.query_map_subtensor("NetworksAdded", block)
         if result.records:
             for network in result.records:
-                subnets.append( network[0].value )
+                subnets.append(network[0].value)
             return subnets
         else:
             return []
 
-    def get_all_subnets_info( self, block: Optional[int] = None ) -> List[SubnetInfo]:
+    def get_all_subnets_info(self, block: Optional[int] = None) -> List[SubnetInfo]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = []
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="subnetInfo_getSubnetsInfo", # custom rpc method
-                    params=params
+                    method="subnetInfo_getSubnetsInfo",  # custom rpc method
+                    params=params,
                 )
 
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return []
 
-        return SubnetInfo.list_from_vec_u8( result )
+        return SubnetInfo.list_from_vec_u8(result)
 
-    def get_subnet_info( self, netuid: int, block: Optional[int] = None ) -> Optional[SubnetInfo]:
+    def get_subnet_info(
+        self, netuid: int, block: Optional[int] = None
+    ) -> Optional[SubnetInfo]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [netuid]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="subnetInfo_getSubnetInfo", # custom rpc method
-                    params=params
+                    method="subnetInfo_getSubnetInfo",  # custom rpc method
+                    params=params,
                 )
 
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return None
 
-        return SubnetInfo.from_vec_u8( result )
+        return SubnetInfo.from_vec_u8(result)
 
     ####################
     #### Nomination ####
     ####################
-    def is_hotkey_delegate( self, hotkey_ss58: str, block: Optional[int] = None ) -> bool:
-        return hotkey_ss58 in [ info.hotkey_ss58 for info in self.get_delegates( block = block ) ]
+    def is_hotkey_delegate(self, hotkey_ss58: str, block: Optional[int] = None) -> bool:
+        return hotkey_ss58 in [
+            info.hotkey_ss58 for info in self.get_delegates(block=block)
+        ]
 
-    def get_delegate_take( self, hotkey_ss58: str, block: Optional[int] = None ) -> Optional[float]:
-        return U16_NORMALIZED_FLOAT( self.query_subtensor( 'Delegates', block, [ hotkey_ss58 ] ).value )
+    def get_delegate_take(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> Optional[float]:
+        return U16_NORMALIZED_FLOAT(
+            self.query_subtensor("Delegates", block, [hotkey_ss58]).value
+        )
 
-    def get_nominators_for_hotkey( self, hotkey_ss58: str, block: Optional[int] = None ) -> List[Tuple[str, Balance]]:
-        result = self.query_map_subtensor( 'Stake', block, [ hotkey_ss58 ] )
+    def get_nominators_for_hotkey(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> List[Tuple[str, Balance]]:
+        result = self.query_map_subtensor("Stake", block, [hotkey_ss58])
         if result.records:
             return [(record[0].value, record[1].value) for record in result.records]
         else:
             return 0
 
-    def get_delegate_by_hotkey( self, hotkey_ss58: str, block: Optional[int] = None ) -> Optional[DelegateInfo]:
+    def get_delegate_by_hotkey(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> Optional[DelegateInfo]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry(encoded_hotkey: List[int]):
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [encoded_hotkey]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="delegateInfo_getDelegate", # custom rpc method
-                    params=params
+                    method="delegateInfo_getDelegate",  # custom rpc method
+                    params=params,
                 )
 
-        hotkey_bytes: bytes = bittensor.utils.ss58_address_to_bytes( hotkey_ss58 )
-        encoded_hotkey: List[int] = [ int( byte ) for byte in hotkey_bytes ]
+        hotkey_bytes: bytes = bittensor.utils.ss58_address_to_bytes(hotkey_ss58)
+        encoded_hotkey: List[int] = [int(byte) for byte in hotkey_bytes]
         json_body = make_substrate_call_with_retry(encoded_hotkey)
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return None
 
-        return DelegateInfo.from_vec_u8( result )
+        return DelegateInfo.from_vec_u8(result)
 
-    def get_delegates( self, block: Optional[int] = None ) -> List[DelegateInfo]:
+    def get_delegates(self, block: Optional[int] = None) -> List[DelegateInfo]:
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = []
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="delegateInfo_getDelegates", # custom rpc method
-                    params=params
+                    method="delegateInfo_getDelegates",  # custom rpc method
+                    params=params,
                 )
+
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return []
 
-        return DelegateInfo.list_from_vec_u8( result )
+        return DelegateInfo.list_from_vec_u8(result)
 
-    def get_delegated( self, coldkey_ss58: str, block: Optional[int] = None ) -> List[Tuple[DelegateInfo, Balance]]:
+    def get_delegated(
+        self, coldkey_ss58: str, block: Optional[int] = None
+    ) -> List[Tuple[DelegateInfo, Balance]]:
         """ Returns the list of delegates that a given coldkey is staked to.
         """
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry(encoded_coldkey: List[int]):
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [encoded_coldkey]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="delegateInfo_getDelegated", # custom rpc method
-                    params=params
+                    method="delegateInfo_getDelegated",  # custom rpc method
+                    params=params,
                 )
 
-        coldkey_bytes: bytes = bittensor.utils.ss58_address_to_bytes( coldkey_ss58 )
-        encoded_coldkey: List[int] = [ int( byte ) for byte in coldkey_bytes ]
+        coldkey_bytes: bytes = bittensor.utils.ss58_address_to_bytes(coldkey_ss58)
+        encoded_coldkey: List[int] = [int(byte) for byte in coldkey_bytes]
         json_body = make_substrate_call_with_retry(encoded_coldkey)
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return []
 
-        return DelegateInfo.delegated_list_from_vec_u8( result )
-
+        return DelegateInfo.delegated_list_from_vec_u8(result)
 
     ########################################
     #### Neuron information per subnet ####
     ########################################
 
-    def is_hotkey_registered_any( self, hotkey_ss58: str, block: Optional[int] = None) -> bool:
-        return len( self.get_netuids_for_hotkey( hotkey_ss58, block) ) > 0
+    def is_hotkey_registered_any(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> bool:
+        return len(self.get_netuids_for_hotkey(hotkey_ss58, block)) > 0
 
-    def is_hotkey_registered_on_subnet( self, hotkey_ss58: str, netuid: int, block: Optional[int] = None) -> bool:
-        return self.get_uid_for_hotkey_on_subnet( hotkey_ss58, netuid, block ) != None
+    def is_hotkey_registered_on_subnet(
+        self, hotkey_ss58: str, netuid: int, block: Optional[int] = None
+    ) -> bool:
+        return self.get_uid_for_hotkey_on_subnet(hotkey_ss58, netuid, block) != None
 
-    def is_hotkey_registered( self, hotkey_ss58: str, netuid: int, block: Optional[int] = None) -> bool:
-        return self.get_uid_for_hotkey_on_subnet( hotkey_ss58, netuid, block ) != None
+    def is_hotkey_registered(
+        self, hotkey_ss58: str, netuid: int, block: Optional[int] = None
+    ) -> bool:
+        return self.get_uid_for_hotkey_on_subnet(hotkey_ss58, netuid, block) != None
 
-    def get_uid_for_hotkey_on_subnet( self, hotkey_ss58: str, netuid: int, block: Optional[int] = None) -> Optional[int]:
-        return self.query_subtensor( 'Uids', block, [ netuid, hotkey_ss58 ] ).value
+    def get_uid_for_hotkey_on_subnet(
+        self, hotkey_ss58: str, netuid: int, block: Optional[int] = None
+    ) -> Optional[int]:
+        return self.query_subtensor("Uids", block, [netuid, hotkey_ss58]).value
 
-    def get_all_uids_for_hotkey( self, hotkey_ss58: str, block: Optional[int] = None) -> List[int]:
-        return [ self.get_uid_for_hotkey_on_subnet( hotkey_ss58, netuid, block) for netuid in self.get_netuids_for_hotkey( hotkey_ss58, block)]
+    def get_all_uids_for_hotkey(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> List[int]:
+        return [
+            self.get_uid_for_hotkey_on_subnet(hotkey_ss58, netuid, block)
+            for netuid in self.get_netuids_for_hotkey(hotkey_ss58, block)
+        ]
 
-    def get_netuids_for_hotkey( self, hotkey_ss58: str, block: Optional[int] = None) -> List[int]:
-        result = self.query_map_subtensor( 'IsNetworkMember', block, [ hotkey_ss58 ] )
+    def get_netuids_for_hotkey(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> List[int]:
+        result = self.query_map_subtensor("IsNetworkMember", block, [hotkey_ss58])
         netuids = []
         for netuid, is_member in result.records:
             if is_member:
-                netuids.append( netuid.value )
+                netuids.append(netuid.value)
         return netuids
 
-    def get_neuron_for_pubkey_and_subnet( self, hotkey_ss58: str, netuid: int, block: Optional[int] = None ) -> Optional[NeuronInfo]:
-        return self.neuron_for_uid( self.get_uid_for_hotkey_on_subnet(hotkey_ss58, netuid, block=block), netuid, block = block)
+    def get_neuron_for_pubkey_and_subnet(
+        self, hotkey_ss58: str, netuid: int, block: Optional[int] = None
+    ) -> Optional[NeuronInfo]:
+        return self.neuron_for_uid(
+            self.get_uid_for_hotkey_on_subnet(hotkey_ss58, netuid, block=block),
+            netuid,
+            block=block,
+        )
 
-    def get_all_neurons_for_pubkey( self, hotkey_ss58: str, block: Optional[int] = None ) -> List[NeuronInfo]:
-        netuids = self.get_netuids_for_hotkey( hotkey_ss58, block)
+    def get_all_neurons_for_pubkey(
+        self, hotkey_ss58: str, block: Optional[int] = None
+    ) -> List[NeuronInfo]:
+        netuids = self.get_netuids_for_hotkey(hotkey_ss58, block)
         uids = [self.get_uid_for_hotkey_on_subnet(hotkey_ss58, net) for net in netuids]
-        return [self.neuron_for_uid( uid, net ) for uid, net in list(zip(uids, netuids))]
+        return [self.neuron_for_uid(uid, net) for uid, net in list(zip(uids, netuids))]
 
-    def neuron_has_validator_permit( self, uid: int, netuid: int, block: Optional[int] = None ) -> Optional[bool]:
-        return self.query_subtensor( 'ValidatorPermit', block, [ netuid, uid ] ).value
+    def neuron_has_validator_permit(
+        self, uid: int, netuid: int, block: Optional[int] = None
+    ) -> Optional[bool]:
+        return self.query_subtensor("ValidatorPermit", block, [netuid, uid]).value
 
-    def neuron_for_wallet( self, wallet: 'bittensor.Wallet', netuid = int, block: Optional[int] = None ) -> Optional[NeuronInfo]:
-        return self.get_neuron_for_pubkey_and_subnet ( wallet.hotkey.ss58_address, netuid = netuid, block = block )
+    def neuron_for_wallet(
+        self, wallet: "bittensor.Wallet", netuid=int, block: Optional[int] = None
+    ) -> Optional[NeuronInfo]:
+        return self.get_neuron_for_pubkey_and_subnet(
+            wallet.hotkey.ss58_address, netuid=netuid, block=block
+        )
 
-    def neuron_for_uid( self, uid: int, netuid: int, block: Optional[int] = None ) -> Optional[NeuronInfo]:
+    def neuron_for_uid(
+        self, uid: int, netuid: int, block: Optional[int] = None
+    ) -> Optional[NeuronInfo]:
         r""" Returns a list of neuron from the chain.
         Args:
             uid ( int ):
@@ -1165,27 +1451,29 @@ class Subtensor:
             neuron (Optional[NeuronInfo]):
                 neuron metadata associated with uid or None if it does not exist.
         """
-        if uid == None: return NeuronInfo._null_neuron()
+        if uid == None:
+            return NeuronInfo._null_neuron()
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [netuid, uid]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="neuronInfo_getNeuron", # custom rpc method
-                    params=params
+                    method="neuronInfo_getNeuron", params=params  # custom rpc method
                 )
+
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return NeuronInfo._null_neuron()
 
-        return NeuronInfo.from_vec_u8( result )
+        return NeuronInfo.from_vec_u8(result)
 
-    def neurons(self, netuid: int, block: Optional[int] = None ) -> List[NeuronInfo]:
+    def neurons(self, netuid: int, block: Optional[int] = None) -> List[NeuronInfo]:
         r""" Returns a list of neuron from the chain.
         Args:
             netuid ( int ):
@@ -1196,27 +1484,29 @@ class Subtensor:
             neuron (List[NeuronInfo]):
                 List of neuron metadata objects.
         """
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [netuid]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="neuronInfo_getNeurons", # custom rpc method
-                    params=params
+                    method="neuronInfo_getNeurons", params=params  # custom rpc method
                 )
 
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return []
 
-        return NeuronInfo.list_from_vec_u8( result )
+        return NeuronInfo.list_from_vec_u8(result)
 
-    def neuron_for_uid_lite( self, uid: int, netuid: int, block: Optional[int] = None ) -> Optional[NeuronInfoLite]:
+    def neuron_for_uid_lite(
+        self, uid: int, netuid: int, block: Optional[int] = None
+    ) -> Optional[NeuronInfoLite]:
         r""" Returns a list of neuron lite from the chain.
         Args:
             uid ( int ):
@@ -1229,27 +1519,32 @@ class Subtensor:
             neuron (Optional[NeuronInfoLite]):
                 neuron metadata associated with uid or None if it does not exist.
         """
-        if uid == None: return NeuronInfoLite._null_neuron()
+        if uid == None:
+            return NeuronInfoLite._null_neuron()
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [netuid, uid]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="neuronInfo_getNeuronLite", # custom rpc method
-                    params=params
+                    method="neuronInfo_getNeuronLite",  # custom rpc method
+                    params=params,
                 )
+
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return NeuronInfoLite._null_neuron()
 
-        return NeuronInfoLite.from_vec_u8( result )
+        return NeuronInfoLite.from_vec_u8(result)
 
-    def neurons_lite(self, netuid: int, block: Optional[int] = None ) -> List[NeuronInfoLite]:
+    def neurons_lite(
+        self, netuid: int, block: Optional[int] = None
+    ) -> List[NeuronInfoLite]:
         r""" Returns a list of neuron lite from the chain.
         Args:
             netuid ( int ):
@@ -1260,27 +1555,30 @@ class Subtensor:
             neuron (List[NeuronInfoLite]):
                 List of neuron lite metadata objects.
         """
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
-                block_hash = None if block == None else substrate.get_block_hash( block )
+                block_hash = None if block == None else substrate.get_block_hash(block)
                 params = [netuid]
                 if block_hash:
                     params = params + [block_hash]
                 return substrate.rpc_request(
-                    method="neuronInfo_getNeuronsLite", # custom rpc method
-                    params=params
+                    method="neuronInfo_getNeuronsLite",  # custom rpc method
+                    params=params,
                 )
 
         json_body = make_substrate_call_with_retry()
-        result = json_body['result']
+        result = json_body["result"]
 
         if result in (None, []):
             return []
 
-        return NeuronInfoLite.list_from_vec_u8( result )
+        return NeuronInfoLite.list_from_vec_u8(result)
 
-    def metagraph( self, netuid: int, lite: bool = True, block: Optional[int] = None ) -> 'bittensor.Metagraph':
+    def metagraph(
+        self, netuid: int, lite: bool = True, block: Optional[int] = None
+    ) -> "bittensor.Metagraph":
         r""" Returns the metagraph for the subnet.
         Args:
             netuid ( int ):
@@ -1292,35 +1590,40 @@ class Subtensor:
         Returns:
             metagraph ( `bittensor.Metagraph` ):
                 The metagraph for the subnet at the block.
-        """        
-        metagraph_ = bittensor.metagraph( network = self.network, netuid = netuid, lite = lite, sync = False )
-        metagraph_.sync( block = block, lite = lite, subtensor = self)
+        """
+        metagraph_ = bittensor.metagraph(
+            network=self.network, netuid=netuid, lite=lite, sync=False
+        )
+        metagraph_.sync(block=block, lite=lite, subtensor=self)
 
         return metagraph_
-    
+
     ################
     ## Extrinsics ##
     ################
 
     def _do_delegation(
         self,
-        wallet: 'bittensor.wallet',
+        wallet: "bittensor.wallet",
         delegate_ss58: str,
-        amount: 'bittensor.Balance',
+        amount: "bittensor.Balance",
         wait_for_inclusion: bool = True,
         wait_for_finalization: bool = False,
     ) -> bool:
         with self.substrate as substrate:
             call = substrate.compose_call(
-            call_module='SubtensorModule',
-            call_function='add_stake',
-            call_params={
-                'hotkey': delegate_ss58,
-                'amount_staked': amount.rao
-                }
+                call_module="SubtensorModule",
+                call_function="add_stake",
+                call_params={"hotkey": delegate_ss58, "amount_staked": amount.rao},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True
@@ -1331,24 +1634,27 @@ class Subtensor:
                 raise StakeError(response.error_message)
 
     def _do_undelegation(
-            self,
-            wallet: 'bittensor.wallet',
-            delegate_ss58: str,
-            amount: 'bittensor.Balance',
-            wait_for_inclusion: bool = True,
-            wait_for_finalization: bool = False,
-        ) -> bool:
+        self,
+        wallet: "bittensor.wallet",
+        delegate_ss58: str,
+        amount: "bittensor.Balance",
+        wait_for_inclusion: bool = True,
+        wait_for_finalization: bool = False,
+    ) -> bool:
         with self.substrate as substrate:
             call = substrate.compose_call(
-            call_module='SubtensorModule',
-            call_function='remove_stake',
-            call_params={
-                'hotkey': delegate_ss58,
-                'amount_unstaked': amount.rao
-                }
+                call_module="SubtensorModule",
+                call_function="remove_stake",
+                call_params={"hotkey": delegate_ss58, "amount_unstaked": amount.rao},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey )
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True
@@ -1357,23 +1663,27 @@ class Subtensor:
                 return True
             else:
                 raise StakeError(response.error_message)
-    
+
     def _do_nominate(
-            self,
-            wallet: 'bittensor.wallet',
-            wait_for_inclusion: bool = True,
-            wait_for_finalization: bool = False,
-        ) -> bool:
+        self,
+        wallet: "bittensor.wallet",
+        wait_for_inclusion: bool = True,
+        wait_for_finalization: bool = False,
+    ) -> bool:
         with self.substrate as substrate:
             call = substrate.compose_call(
-                call_module='SubtensorModule',
-                call_function='become_delegate',
-                call_params = {
-                    'hotkey': wallet.hotkey.ss58_address
-                }
+                call_module="SubtensorModule",
+                call_function="become_delegate",
+                call_params={"hotkey": wallet.hotkey.ss58_address},
             )
-            extrinsic = substrate.create_signed_extrinsic( call = call, keypair = wallet.coldkey ) # sign with coldkey
-            response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+            extrinsic = substrate.create_signed_extrinsic(
+                call=call, keypair=wallet.coldkey
+            )  # sign with coldkey
+            response = substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=wait_for_inclusion,
+                wait_for_finalization=wait_for_finalization,
+            )
             # We only wait here if we expect finalization.
             if not wait_for_finalization and not wait_for_inclusion:
                 return True
@@ -1397,20 +1707,26 @@ class Subtensor:
                 account balance
         """
         try:
+
             @retry(delay=2, tries=3, backoff=2, max_delay=4)
             def make_substrate_call_with_retry():
                 with self.substrate as substrate:
                     return substrate.query(
-                        module='System',
-                        storage_function='Account',
+                        module="System",
+                        storage_function="Account",
                         params=[address],
-                        block_hash = None if block == None else substrate.get_block_hash( block )
+                        block_hash=None
+                        if block == None
+                        else substrate.get_block_hash(block),
                     )
+
             result = make_substrate_call_with_retry()
         except scalecodec.exceptions.RemainingScaleBytesNotEmptyException:
-            bittensor.logging.error( "Your wallet it legacy formatted, you need to run btcli stake --ammount 0 to reformat it." )
+            bittensor.logging.error(
+                "Your wallet it legacy formatted, you need to run btcli stake --ammount 0 to reformat it."
+            )
             return Balance(1000)
-        return Balance( result.value['data']['free'] )
+        return Balance(result.value["data"]["free"])
 
     def get_current_block(self) -> int:
         r""" Returns the current block number on the chain.
@@ -1418,10 +1734,12 @@ class Subtensor:
             block_number (int):
                 Current chain blocknumber.
         """
+
         @retry(delay=2, tries=3, backoff=2, max_delay=4)
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
                 return substrate.get_block_number(None)
+
         return make_substrate_call_with_retry()
 
     def get_balances(self, block: int = None) -> Dict[str, Balance]:
@@ -1429,42 +1747,45 @@ class Subtensor:
         def make_substrate_call_with_retry():
             with self.substrate as substrate:
                 return substrate.query_map(
-                    module='System',
-                    storage_function='Account',
-                    block_hash = None if block == None else substrate.get_block_hash( block )
+                    module="System",
+                    storage_function="Account",
+                    block_hash=None
+                    if block == None
+                    else substrate.get_block_hash(block),
                 )
+
         result = make_substrate_call_with_retry()
         return_dict = {}
         for r in result:
-            bal = bittensor.Balance( int( r[1]['data']['free'].value ) )
+            bal = bittensor.Balance(int(r[1]["data"]["free"].value))
             return_dict[r[0].value] = bal
         return return_dict
 
     @staticmethod
     def _null_neuron() -> NeuronInfo:
         neuron = NeuronInfo(
-            uid = 0,
-            netuid = 0,
-            active =  0,
-            stake = '0',
-            rank = 0,
-            emission = 0,
-            incentive = 0,
-            consensus = 0,
-            trust = 0,
-            validator_trust = 0,
-            dividends = 0,
-            last_update = 0,
-            validator_permit = False,
-            weights = [],
-            bonds = [],
-            prometheus_info = None,
-            axon_info = None,
-            is_null = True,
-            coldkey = "000000000000000000000000000000000000000000000000",
-            hotkey = "000000000000000000000000000000000000000000000000"
+            uid=0,
+            netuid=0,
+            active=0,
+            stake="0",
+            rank=0,
+            emission=0,
+            incentive=0,
+            consensus=0,
+            trust=0,
+            validator_trust=0,
+            dividends=0,
+            last_update=0,
+            validator_permit=False,
+            weights=[],
+            bonds=[],
+            prometheus_info=None,
+            axon_info=None,
+            is_null=True,
+            coldkey="000000000000000000000000000000000000000000000000",
+            hotkey="000000000000000000000000000000000000000000000000",
         )
         return neuron
 
     def get_block_hash(self, block_id: int) -> str:
-        return self.substrate.get_block_hash( block_id = block_id )
+        return self.substrate.get_block_hash(block_id=block_id)

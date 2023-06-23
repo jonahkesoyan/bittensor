@@ -33,15 +33,22 @@ from . import config_impl
 
 logger = logger.opt(colors=True)
 
+
 class config:
     """
     Create and init the config class, which manages the config of different bittensor modules.
     """
+
     class InvalidConfigFile(Exception):
         """ In place of YAMLError
         """
 
-    def __new__( cls, parser: ArgumentParser = None, strict: bool = False, args: Optional[List[str]] = None ):
+    def __new__(
+        cls,
+        parser: ArgumentParser = None,
+        strict: bool = False,
+        args: Optional[List[str]] = None,
+    ):
         r""" Translates the passed parser into a nested Bittensor config.
         Args:
             parser (argparse.Parser):
@@ -59,12 +66,21 @@ class config:
 
         # Optionally add config specific arguments
         try:
-            parser.add_argument('--config', type=str, help='If set, defaults are overridden by passed file.')
+            parser.add_argument(
+                "--config",
+                type=str,
+                help="If set, defaults are overridden by passed file.",
+            )
         except:
             # this can fail if the --config has already been added.
             pass
         try:
-            parser.add_argument('--strict',  action='store_true', help='''If flagged, config will check that only exact arguemnts have been set.''', default=False )
+            parser.add_argument(
+                "--strict",
+                action="store_true",
+                help="""If flagged, config will check that only exact arguemnts have been set.""",
+                default=False,
+            )
         except:
             # this can fail if the --config has already been added.
             pass
@@ -75,7 +91,11 @@ class config:
 
         # 1.1 Optionally load defaults if the --config is set.
         try:
-            config_file_path = str(os.getcwd()) + '/' + vars(parser.parse_known_args(args)[0])['config']
+            config_file_path = (
+                str(os.getcwd())
+                + "/"
+                + vars(parser.parse_known_args(args)[0])["config"]
+            )
         except Exception as e:
             config_file_path = None
 
@@ -90,10 +110,10 @@ class config:
             try:
                 with open(config_file_path) as f:
                     params_config = yaml.safe_load(f)
-                    print('Loading config defaults from: {}'.format(config_file_path))
+                    print("Loading config defaults from: {}".format(config_file_path))
                     parser.set_defaults(**params_config)
             except Exception as e:
-                print('Error in loading: {} using default parser settings'.format(e))
+                print("Error in loading: {} using default parser settings".format(e))
 
         # 2. Continue with loading in params.
         params = cls.__parse_args__(args=args, parser=parser, strict=strict)
@@ -102,7 +122,7 @@ class config:
 
         # Splits params on dot syntax i.e neuron.axon_port
         for arg_key, arg_val in params.__dict__.items():
-            split_keys = arg_key.split('.')
+            split_keys = arg_key.split(".")
             head = _config
             keys = split_keys
             while len(keys) > 1:
@@ -119,14 +139,16 @@ class config:
         # Get defaults for this config
         is_set_map = cls.__fill_is_set_list__(_config, bittensor.defaults)
 
-        _config['__is_set'] = is_set_map
+        _config["__is_set"] = is_set_map
 
         _config.__fill_with_defaults__(is_set_map, bittensor.defaults)
 
         return _config
 
     @staticmethod
-    def __fill_is_set_list__(_config: 'bittensor.Config', defaults: 'bittensor.Config') -> Dict[str, bool]:
+    def __fill_is_set_list__(
+        _config: "bittensor.Config", defaults: "bittensor.Config"
+    ) -> Dict[str, bool]:
         """Creates an is_set map
         Args:
             _config (bittensor.Config):
@@ -148,19 +170,22 @@ class config:
         if defaults_filtered == {}:
             return is_set_map
 
-        flat_config = pd.json_normalize(config_d, sep='.').to_dict('records')[0]
-        flat_defaults = pd.json_normalize(defaults_filtered, sep='.').to_dict('records')[0]
+        flat_config = pd.json_normalize(config_d, sep=".").to_dict("records")[0]
+        flat_defaults = pd.json_normalize(defaults_filtered, sep=".").to_dict(
+            "records"
+        )[0]
         for key, _ in flat_defaults.items():
             if key in flat_config:
                 is_set_map[key] = True
             else:
                 is_set_map[key] = False
-        
+
         return is_set_map
 
-
     @staticmethod
-    def __parse_args__( args: List[str], parser: ArgumentParser = None, strict: bool = False) -> Namespace:
+    def __parse_args__(
+        args: List[str], parser: ArgumentParser = None, strict: bool = False
+    ) -> Namespace:
         """Parses the passed args use the passed parser.
         Args:
             args (List[str]):
@@ -185,10 +210,10 @@ class config:
         """ From the parser, add arguments to multiple bittensor sub-modules
         """
         parser = ArgumentParser()
-        bittensor.wallet.add_args( parser )
-        bittensor.subtensor.add_args( parser )
-        bittensor.axon.add_args( parser )
-        bittensor.metagraph.add_args( parser )
-        bittensor.dataset.add_args( parser )
-        bittensor.prometheus.add_args( parser )
-        return bittensor.config( parser )
+        bittensor.wallet.add_args(parser)
+        bittensor.subtensor.add_args(parser)
+        bittensor.axon.add_args(parser)
+        bittensor.metagraph.add_args(parser)
+        bittensor.dataset.add_args(parser)
+        bittensor.prometheus.add_args(parser)
+        return bittensor.config(parser)
