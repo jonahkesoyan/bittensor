@@ -160,6 +160,7 @@ class neuron:
             for fpath in os.listdir( self.config.neuron.reward_path ):
                 if fpath.endswith(".pt") or fpath.endswith(".bin"):
                     checkpoint = os.path.join( self.config.neuron.reward_path, fpath )
+                    bittensor.logging.info(f'Found reward model at {checkpoint}')
                     break
             ckpt_state = torch.load( checkpoint )
             self.reward_model.load_state_dict( ckpt_state )
