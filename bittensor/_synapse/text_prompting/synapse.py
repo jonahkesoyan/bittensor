@@ -19,10 +19,10 @@ import grpc
 import torch
 import bittensor
 
+from fastapi import APIRouter
 from typing import List, Dict, Union, Callable
 from abc import ABC, abstractmethod
 import json
-
 
 class SynapseForwardMulti( bittensor.SynapseCall ):
     name: str = "text_prompting_forward_multi"
@@ -134,6 +134,12 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
         self.axon = axon
         bittensor.grpc.add_TextPromptingServicer_to_server( self, self.axon.server )
 
+        # Add FastAPI routes.
+        self.router = APIRouter()
+        self.router.add_api_route( "/TextToCompletion/Forward/", self.fast_api_forward_text_to_completion, methods = ["GET", "POST"])
+        self.router.add_api_route( "/TextToCompletion/Backward", self.fast_api_backward_text_to_completion, methods = ["GET"])
+        self.axon.fastapi_app.include_router( self.router )
+
     @abstractmethod
     def forward( self, messages: List[Dict[str, str]] ) -> str: ...
 
@@ -141,6 +147,17 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
 
     @abstractmethod
     def backward( self, messages: List[Dict[str, str]], response: str, rewards: torch.FloatTensor ) -> str: ...
+
+    def fast_api_forward_text_to_completion( self, hotkey: str, roles: List[str], messages: List[str], timeout: int = 12 ):
+        bittensor.logging.trace( 'fast_api_forward_text_to_completion')
+        packed_messages = [ json.dumps({"role": role, "content": message}) for role, message in zip( roles,  messages )]
+        request = bittensor.ForwardTextPromptingRequest( hotkey = hotkey, timeout = timeout, messages = packed_messages, version = bittensor.__version_as_int__ )
+        call = SynapseForward( self, request, self.forward, self.context )
+        bittensor.logging.trace( 'FastTextToCompletionForward: {} '.format( call ) )
+        return self.apply( call = call ).response
+
+    def fast_api_backward_text_to_completion( self ):
+        raise NotImplementedError('Not Implemented')
 
     def Forward( self, request: bittensor.proto.ForwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.ForwardTextPromptingResponse:
         call = SynapseForward( self, request, self.forward, context )
