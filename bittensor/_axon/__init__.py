@@ -149,6 +149,7 @@ class axon:
         config.axon.external_port = (
             external_port if external_port is not None else config.axon.external_port
         )
+        config.axon.disable_fast_api = disable_fast_api
         config.axon.fast_api_port = fast_api_port or config.axon.fast_api_port
         config.axon.external_fast_api_port = external_fast_api_port or config.axon.external_fast_api_port
         config.axon.max_workers = max_workers if max_workers is not None else config.axon.max_workers
