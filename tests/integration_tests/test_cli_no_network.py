@@ -43,7 +43,7 @@ class TestCLINoNetwork(unittest.TestCase):
             "return_per_1000": bittensor.Balance.from_rao(0),
             "total_daily_return": bittensor.Balance.from_rao(0)
         }
-        cls._patched_subtensor = patch('bittensor._subtensor.subtensor_mock.mock_subtensor.mock', new=MagicMock(
+        cls._patched_subtensor = patch('bittensor._subtensor.subtensor_mock.MockSubtensor.__new__', new=MagicMock(
             return_value=MagicMock(
                 get_subnets=MagicMock(return_value=[1]), # Mock subnet 1 ONLY.
                 block=10_000,
@@ -69,6 +69,14 @@ class TestCLINoNetwork(unittest.TestCase):
     @staticmethod
     def construct_config():
         defaults = bittensor.Config()
+
+        # Get defaults for this config
+        is_set_map = bittensor.config.__fill_is_set_list__(defaults, bittensor.defaults)
+
+        defaults['__is_set'] = is_set_map
+
+        defaults.__fill_with_defaults__(is_set_map, bittensor.defaults)
+
         defaults.netuid = 1
         bittensor.subtensor.add_defaults( defaults )
         defaults.subtensor.network = 'mock'
@@ -79,7 +87,6 @@ class TestCLINoNetwork(unittest.TestCase):
 
         return defaults
 
-    @unittest.skip("")
     def test_check_configs(self):
         config = self.config
         config.no_prompt = True
@@ -93,6 +100,7 @@ class TestCLINoNetwork(unittest.TestCase):
         config.no_version_checking = True
         config.ss58_address = bittensor.Keypair.create_from_seed( b'0' * 32 ).ss58_address
         config.public_key_hex = None
+        config.proposal_hash = ""
 
         cli = bittensor.cli
 
@@ -115,7 +123,6 @@ class TestCLINoNetwork(unittest.TestCase):
                 config.command = cmd
                 cli.check_config(config)
 
-    @unittest.skip("")
     def test_new_coldkey( self ):
         config = self.config
         config.wallet.name = "new_coldkey_testwallet"
@@ -132,7 +139,6 @@ class TestCLINoNetwork(unittest.TestCase):
         cli = bittensor.cli(config)
         cli.run()
 
-    @unittest.skip("")
     def test_new_hotkey( self ):
         config = self.config
         config.wallet.name = "new_hotkey_testwallet"
@@ -149,7 +155,6 @@ class TestCLINoNetwork(unittest.TestCase):
         cli = bittensor.cli(config)
         cli.run()
 
-    @unittest.skip("")
     def test_regen_coldkey( self ):
         config = self.config
         config.wallet.name = "regen_coldkey_testwallet"
@@ -168,7 +173,6 @@ class TestCLINoNetwork(unittest.TestCase):
         cli = bittensor.cli(config)
         cli.run()
 
-    @unittest.skip("")
     def test_regen_coldkeypub( self ):
         config = self.config
         config.wallet.name = "regen_coldkeypub_testwallet"
@@ -183,7 +187,6 @@ class TestCLINoNetwork(unittest.TestCase):
         cli = bittensor.cli(config)
         cli.run()
 
-    @unittest.skip("")
     def test_regen_hotkey( self ):
         config = self.config
         config.wallet.name = "regen_hotkey_testwallet"
@@ -296,15 +299,14 @@ class TestCLINoNetwork(unittest.TestCase):
         commands = [
             command for command in parser._actions[1].choices
         ]
-        # Verify that all commands are listed in the help message
-        for command in commands:
-            assert command in help_out
+        # Verify that all commands are listed in the help message, AND
         # Verify there are no duplicate commands
-        # Listed twice. Once in the positional arguments and once in the optional arguments
+        ##  Listed twice. Once in the positional arguments and once in the optional arguments
         for command in commands:
-            pat = re.compile(rf'\n\s+({command})\s+\w')
+            pat = re.compile(rf'\n\s+({command})[^\S\r\n]+\w')
             matches = pat.findall(help_out)
-            self.assertEqual( len(matches), 1, f"Duplicate command {command} in help output")
+            self.assertGreaterEqual( len(matches), 1, f"Command {command} not found in help output")
+            self.assertLess( len(matches), 2, f"Duplicate command {command} in help output")
 
     def test_register_cuda_use_cuda_flag(self):
             class ExitEarlyException(Exception):
@@ -363,7 +365,7 @@ class TestCLIDefaultsNoNetwork(unittest.TestCase):
             "return_per_1000": bittensor.Balance.from_rao(0), 
             "total_daily_return": bittensor.Balance.from_rao(0)
         }
-        cls._patched_subtensor = patch('bittensor._subtensor.subtensor_mock.mock_subtensor.mock', new=MagicMock(
+        cls._patched_subtensor = patch('bittensor._subtensor.subtensor_mock.MockSubtensor.__new__', new=MagicMock(
             return_value=MagicMock(
                 get_subnets=MagicMock(return_value=[1]), # Mock subnet 1 ONLY.
                 block=10_000,
