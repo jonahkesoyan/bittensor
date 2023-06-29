@@ -143,8 +143,6 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
     @abstractmethod
     def forward( self, messages: List[Dict[str, str]] ) -> str: ...
 
-    def multi_forward( self, messages: List[Dict[str, str]] ) -> List[ str ]: ...
-
     @abstractmethod
     def backward( self, messages: List[Dict[str, str]], response: str, rewards: torch.FloatTensor ) -> str: ...
 
@@ -162,11 +160,6 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
     def Forward( self, request: bittensor.proto.ForwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.ForwardTextPromptingResponse:
         call = SynapseForward( self, request, self.forward, context )
         bittensor.logging.trace( 'Forward: {} '.format( call ) )
-        return self.apply( call = call )
-
-    def MultiForward( self, request: bittensor.proto.MultiForwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.MultiForwardTextPromptingResponse:
-        call = SynapseForwardMulti( self, request, self.multi_forward, context )
-        bittensor.logging.trace( 'MultiForward: {} '.format( call ) )
         return self.apply( call = call )
 
     def Backward( self, request: bittensor.proto.BackwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.BackwardTextPromptingResponse:

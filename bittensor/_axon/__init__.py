@@ -18,24 +18,22 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import os
-import json
-import grpc
 import copy
 import torch
 import argparse
 import bittensor
 
-from concurrent import futures
 from dataclasses import dataclass
 from substrateinterface import Keypair
 import bittensor.utils.networking as net
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import time
 import threading
 import contextlib
 import uvicorn
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
+from starlette.requests import Request
 
 class FastAPIThreadedServer(uvicorn.Server):
     """ FastAPI server that runs in a thread."""
@@ -82,7 +80,7 @@ class axon:
             version = bittensor.__version_as_int__,
             ip = self.external_ip,
             ip_type = 4,
-            port = self.external_port,
+            port = self.external_fast_api_port,
             hotkey = self.wallet.hotkey.ss58_address,
             coldkey = self.wallet.coldkeypub.ss58_address,
             protocol = 4,
@@ -90,9 +88,10 @@ class axon:
             placeholder2 = 0,
         )
 
-    def fast_info(self) -> dict:
+    def fast_api_info(self) -> dict:
         fastinfo = self.info().__dict__
-        fastinfo.update({'external_fast_api_port': self.external_fast_api_port})
+        fastinfo.update({'fast_api_port': self.config.axon.fast_api_port})
+        fastinfo.update({'external_fast_api_port': self.config.axon.external_fast_api_port})
         return fastinfo
 
     def __init__(
@@ -105,7 +104,6 @@ class axon:
         external_ip: Optional[str] = None,
         external_port: Optional[int] = None,
         max_workers: Optional[int] = None,
-        server: "grpc._server._Server" = None,
         maximum_concurrent_rpcs: Optional[int] = None,
         disable_fast_api: Optional[bool] = None,
         fast_api_port: Optional[int] = None,
@@ -165,7 +163,6 @@ class axon:
         self.ip = self.config.axon.ip
         self.port = self.config.axon.port
         self.external_ip = self.config.axon.external_ip if self.config.axon.external_ip != None else bittensor.utils.networking.get_external_ip()
-        self.external_port = self.config.axon.external_port if self.config.axon.external_port != None else self.config.axon.port
         self.external_fast_api_port = (
             self.config.axon.external_fast_api_port
             if self.config.axon.external_fast_api_port != None
@@ -174,36 +171,23 @@ class axon:
         self.full_address = str(self.config.axon.ip) + ":" + str(self.config.axon.port)
         self.started = False
 
+        # Build interceptors.
+        self.receiver_hotkey = self.wallet.hotkey.ss58_address
+
         # Instantiate FastAPI
-        if not self.config.axon.disable_fast_api:
-            self.fastapi_app = FastAPI()
-            self.fast_config = uvicorn.Config( self.fastapi_app, host = '0.0.0.0', port = self.config.axon.fast_api_port, log_level="info")
-            self.fast_server = FastAPIThreadedServer( config = self.fast_config )
-            self.router = APIRouter()
-            self.router.add_api_route("/", self.fast_api_info, methods=["GET"])
-            self.fastapi_app.include_router( self.router )
+        # Add interceptor for fastAPI queries.
+        self.fast_interceptor = FastAuthInterceptor(receiver_hotkey=self.receiver_hotkey) 
+        # All requests will depend on the fast_interceptor.
+        self.fastapi_app = FastAPI(dependencies=[Depends(self.fast_interceptor)])
+        self.fast_config = uvicorn.Config( self.fastapi_app, host = '0.0.0.0', port = self.config.axon.fast_api_port, log_level="info")
+        self.fast_server = FastAPIThreadedServer( config = self.fast_config )
+        self.router = APIRouter()
+        self.router.add_api_route("/", self.fast_api_info, methods=["GET", "POST"])
+        self.fastapi_app.include_router(self.router)
 
         # Build priority thread pool
         self.priority_threadpool = bittensor.prioritythreadpool(config=self.config.axon)
 
-        # Build interceptor.
-        self.receiver_hotkey = self.wallet.hotkey.ss58_address
-        self.auth_interceptor = AuthInterceptor(receiver_hotkey=self.receiver_hotkey)
-
-        # Build grpc server
-        if server is None:
-            self.thread_pool = futures.ThreadPoolExecutor(max_workers=self.config.axon.max_workers)
-            self.server = grpc.server(
-                self.thread_pool,
-                interceptors=(self.auth_interceptor,),
-                maximum_concurrent_rpcs=self.config.axon.maximum_concurrent_rpcs,
-                options=[("grpc.keepalive_time_ms", 100000), ("grpc.keepalive_timeout_ms", 500000)],
-            )
-            self.server.add_insecure_port(self.full_address)
-        else:
-            self.server = server
-            self.thread_pool = server._state.thread_pool
-            self.server.add_insecure_port(self.full_address)
 
     @classmethod
     def config(cls) -> "bittensor.Config":
@@ -341,22 +325,33 @@ class axon:
         self.started = False
 
 
-class AuthInterceptor(grpc.ServerInterceptor):
-    """Creates a new server interceptor that authenticates incoming messages from passed arguments."""
-
-    def __init__(
-        self,
-        receiver_hotkey: str,
-    ):
-        r"""Creates a new server interceptor that authenticates incoming messages from passed arguments.
-        Args:
-            receiver_hotkey(str):
-                the SS58 address of the hotkey which should be targeted by RPCs
-        """
-        super().__init__()
+class FastAuthInterceptor:
+    def __init__(self, receiver_hotkey: str):
         self.nonces = {}
         self.receiver_hotkey = receiver_hotkey
 
+    async def __call__(self, request: Request, signature: Optional[str] = None, version: Optional[str] = None):
+        if signature is None or version is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Request signature or version missing"
+            )
+        if int(version) < 510:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Incorrect Version"
+            )
+
+        parts = self.parse_signature_v2(signature)
+        if parts is not None:
+            nonce, sender_hotkey, signature, receptor_uuid = parts
+            self.check_signature(nonce, sender_hotkey, signature, receptor_uuid)
+            return True
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unknown signature format"
+        )
 
     def parse_signature_v2(self, signature: str) -> Optional[Tuple[int, str, str, str]]:
         r"""Attempts to parse a signature using the v2 format"""
@@ -371,19 +366,6 @@ class AuthInterceptor(grpc.ServerInterceptor):
         signature = parts[2]
         receptor_uuid = parts[3]
         return (nonce, sender_hotkey, signature, receptor_uuid)
-
-    def parse_signature(self, metadata: Dict[str, str]) -> Tuple[int, str, str, str]:
-        r"""Attempts to parse a signature from the metadata"""
-        signature = metadata.get("bittensor-signature")
-        version = metadata.get('bittensor-version')
-        if signature is None:
-            raise Exception("Request signature missing")
-        if int(version) < 510:
-            raise Exception("Incorrect Version")
-        parts = self.parse_signature_v2(signature)
-        if parts is not None:
-            return parts
-        raise Exception("Unknown signature format")
 
     def check_signature(
         self,
@@ -410,30 +392,6 @@ class AuthInterceptor(grpc.ServerInterceptor):
         if not keypair.verify(message, signature):
             raise Exception("Signature mismatch")
         self.nonces[endpoint_key] = nonce
-
-    def intercept_service(self, continuation, handler_call_details):
-        r"""Authentication between bittensor nodes. Intercepts messages and checks them"""
-        metadata = dict(handler_call_details.invocation_metadata)
-
-        try:
-            (
-                nonce,
-                sender_hotkey,
-                signature,
-                receptor_uuid,
-            ) = self.parse_signature(metadata)
-
-            # signature checking
-            self.check_signature(
-                nonce, sender_hotkey, signature, receptor_uuid
-            )
-
-            return continuation(handler_call_details)
-
-        except Exception as e:
-            message = str(e)
-            abort = lambda _, ctx: ctx.abort(grpc.StatusCode.UNAUTHENTICATED, message)
-            return grpc.unary_unary_rpc_method_handler(abort)
 
 
 METADATA_BUFFER_SIZE = 250

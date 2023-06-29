@@ -21,9 +21,9 @@ import time
 import torch
 import asyncio
 import bittensor
+import httpx 
 
-from grpc import _common
-from typing import Union, Optional, Callable, List, Tuple
+from typing import Union, Callable, List, Tuple
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
@@ -153,12 +153,6 @@ class Dendrite( ABC, torch.nn.Module ):
         self.ip = ip
         self.keypair = keypair.hotkey if isinstance( keypair, bittensor.Wallet ) else keypair
         self.axon_info = axon.info() if isinstance( axon, bittensor.axon ) else axon
-        if self.axon_info.ip == self.ip:
-            self.endpoint_str = "localhost:" + str(self.axon_info.port)
-        else:
-            self.endpoint_str = self.axon_info.ip + ':' + str(self.axon_info.port)
-        self.channel = grpc.aio.insecure_channel( self.endpoint_str, options = grpc_options )
-        self.state_dict = _common.CYGRPC_CONNECTIVITY_STATE_TO_CHANNEL_CONNECTIVITY
         self.loop = asyncio.get_event_loop()
 
     async def apply( self, dendrite_call: 'DendriteCall' ) -> DendriteCall:
@@ -172,37 +166,36 @@ class Dendrite( ABC, torch.nn.Module ):
         bittensor.logging.trace('Dendrite.apply()')
         try:
             dendrite_call.log_outbound()
-            asyncio_future = dendrite_call.get_callable()(
-                request = dendrite_call._get_request_proto(),
-                timeout = dendrite_call.timeout,
-                metadata = (
-                    ('rpc-auth-header','Bittensor'),
-                    ('bittensor-signature', self.sign() ),
-                    ('bittensor-version',str(bittensor.__version_as_int__)),
-                )
-            )
+            # Prepare headers including signature
+            headers = {
+                'rpc-auth-header': 'Bittensor',
+                'bittensor-signature': self.sign(),
+                'bittensor-version': str(bittensor.__version_as_int__),
+            }
+
+            # Prepare payload from dendrite_call._get_request_proto() here
+            data = dendrite_call.get_fastapi_payload()
+
+            # Form the request url
+            # Note: the exact route may need to be adjusted to match the specific API
+             #TODO: How should we abstract the route? (Where will it come from? global dict? or here in dendrite?)
+            url = f"http://{self.axon_info.ip}:{self.axon_info.external_fast_api_port}/TextToCompletion/Forward/"
+
+            # Send the request
             bittensor.logging.trace( 'Dendrite.apply() awaiting response from: {}'.format( self.axon_info.hotkey ) )
-            response_proto = await asyncio.wait_for( asyncio_future, timeout = dendrite_call.timeout )
-            dendrite_call._apply_response_proto( response_proto )
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=data)
+            
             bittensor.logging.trace( 'Dendrite.apply() received response from: {}'.format( self.axon_info.hotkey ) )
 
-        # Request failed with GRPC code.
-        except grpc.RpcError as rpc_error_call:
-            dendrite_call.return_code = rpc_error_call.code()
-            dendrite_call.return_message = 'GRPC error code: {}, details: {}'.format( rpc_error_call.code(), str(rpc_error_call.details()) )
-            bittensor.logging.trace( 'Dendrite.apply() rpc error: {}'.format( dendrite_call.return_message ) )
+            # Handle response and errors
+            if response.status_code == 200:
+                # Process the response if successful
+                response_proto = response.json()
+                dendrite_call._apply_response_proto( response_proto )
 
-        # Catch timeout errors.
-        except asyncio.TimeoutError:
-            dendrite_call.return_code = bittensor.proto.ReturnCode.Timeout
-            dendrite_call.return_message = 'GRPC request timeout after: {}s'.format( dendrite_call.timeout)
-            bittensor.logging.trace( 'Denrite.apply() timeout error: {}'.format( dendrite_call.return_message ) )
-
-        except Exception as e:
-            # Catch unknown errors.
-            dendrite_call.return_code = bittensor.proto.ReturnCode.UnknownException
-            dendrite_call.return_message = str(e)
-            bittensor.logging.trace( 'Dendrite.apply() unknown error: {}'.format( dendrite_call.return_message ) )
+            bittensor.logging.trace( 'Dendrite.apply() received response from: {}'.format( self.axon_info.hotkey ) )
 
         finally:
             dendrite_call.end()
@@ -217,12 +210,13 @@ class Dendrite( ABC, torch.nn.Module ):
         self.__exit__()
 
     def __del__ ( self ):
-        try:
-            result = self.channel._channel.check_connectivity_state(True)
-            if self.state_dict[result] != self.state_dict[result].SHUTDOWN:
-                self.loop.run_until_complete ( self.channel.close() )
-        except:
-            pass
+        del 
+        # try:
+        #     result = self.channel._channel.check_connectivity_state(True)
+        #     if self.state_dict[result] != self.state_dict[result].SHUTDOWN:
+        #         self.loop.run_until_complete ( self.channel.close() )
+        # except:
+        #     pass
 
     def nonce ( self ):
         return time.monotonic_ns()
