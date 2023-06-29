@@ -677,13 +677,20 @@ class neuron:
                     bittensor.logging.info( 'weights', weights )
 
                     # Set the weights on chain via our subtensor connection.
-                    self.subtensor.set_weights(
-                        wallet = self.wallet,
-                        netuid = self.config.netuid,
-                        uids = uids,
-                        weights = weights,
-                        wait_for_finalization = False,
-                    )
+                    try:
+                        # Set the weights on chain via our subtensor connection.
+                        self.subtensor.set_weights(
+                            wallet = self.wallet,
+                            netuid = self.config.netuid,
+                            uids = uids,
+                            weights = weights,
+                            wait_for_finalization = True,
+                        )
+                    except Exception as e:
+                        bittensor.logging.error( 'Error setting weights on chain', str( e ) )
+                        import json
+                        with open("weights_to_set.json", "w") as f:
+                            json.dump((uids, weights), f)
                 steps += 1 
 
         except Exception as e:
