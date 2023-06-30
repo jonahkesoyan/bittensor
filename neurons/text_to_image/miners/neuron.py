@@ -137,6 +137,8 @@ def main( config ):
 
     # --- Load Textual Inversions ---
     inversions_path = os.path.join(get_project_root(),'neurons/text_to_image/inversions/')
+    if not os.path.exists(inversions_path):
+        os.makedirs(inversions_path)
     files = os.listdir(inversions_path)
     for file in files:
         if file.endswith(".pt") or file.endswith(".safetensors"):
