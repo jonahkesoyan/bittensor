@@ -77,7 +77,7 @@ class BaseMinerNeuron:
         )
         parser.add_argument(
             '--' + prefix_str + 'neuron.blocks_per_epoch', 
-            type = str, 
+            type = int,
             help = 'Blocks until the miner sets weights on chain',
             default = 100
         )
