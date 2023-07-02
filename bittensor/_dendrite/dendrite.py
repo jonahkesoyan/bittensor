@@ -57,32 +57,16 @@ class DendriteCall( ABC ):
         return self.__repr__()
 
     @abstractmethod
-    def get_callable(self) -> Callable: ...
-
-    @abstractmethod
     def get_inputs_shape(self) -> torch.Size: ...
 
     @abstractmethod
     def get_outputs_shape(self) -> torch.Size: ...
 
     @abstractmethod
-    def get_request_proto(self) -> object: ...
-
-    def _get_request_proto(self) -> object:
-        request_proto = self.get_request_proto()
-        request_proto.version = self.src_version
-        request_proto.timeout = self.timeout
-        return request_proto
+    def get_fastapi_request_payload(self) -> object: ...
 
     @abstractmethod
-    def apply_response_proto( self, response_proto: object ): ...
-
-    def _apply_response_proto( self, response_proto: object ):
-        self.apply_response_proto( response_proto )
-        try: self.return_message = response_proto.return_message
-        except: pass
-        try: self.return_code = response_proto.return_code
-        except: pass
+    def apply_fast_api_response( self, response: object ): ...
 
     def end(self):
         self.end_time = time.time()
@@ -172,30 +156,34 @@ class Dendrite( ABC, torch.nn.Module ):
                 'bittensor-signature': self.sign(),
                 'bittensor-version': str(bittensor.__version_as_int__),
             }
-
             # Prepare payload from dendrite_call._get_request_proto() here
-            data = dendrite_call.get_fastapi_payload()
+            data = dendrite_call.get_fastapi_request_payload()
 
             # Form the request url
-            # Note: the exact route may need to be adjusted to match the specific API
-             #TODO: How should we abstract the route? (Where will it come from? global dict? or here in dendrite?)
-            url = f"http://{self.axon_info.ip}:{self.axon_info.external_fast_api_port}/TextToCompletion/Forward/"
+            url = f"http://{self.axon_info.ip}:{self.axon_info.external_fast_api_port}{dendrite_call.route}"
 
             # Send the request
             bittensor.logging.trace( 'Dendrite.apply() awaiting response from: {}'.format( self.axon_info.hotkey ) )
-            
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=data)
-            
             bittensor.logging.trace( 'Dendrite.apply() received response from: {}'.format( self.axon_info.hotkey ) )
 
             # Handle response and errors
             if response.status_code == 200:
                 # Process the response if successful
                 response_proto = response.json()
-                dendrite_call._apply_response_proto( response_proto )
-
+                dendrite_call.apply_fast_api_response( response_proto )
+            else:
+                # Raise an error if not successful
+                raise Exception(response.text)
             bittensor.logging.trace( 'Dendrite.apply() received response from: {}'.format( self.axon_info.hotkey ) )
+
+        # Other uncaught exceptions
+        except Exception as e:
+            dendrite_call.return_code = response.status_code
+            dendrite_call.return_message = str(e)
+            bittensor.logging.error( 'Dendrite.apply() received error from: {}'.format( self.axon_info.hotkey ) )
+            bittensor.logging.error( e )
 
         finally:
             dendrite_call.end()
@@ -210,13 +198,7 @@ class Dendrite( ABC, torch.nn.Module ):
         self.__exit__()
 
     def __del__ ( self ):
-        del 
-        # try:
-        #     result = self.channel._channel.check_connectivity_state(True)
-        #     if self.state_dict[result] != self.state_dict[result].SHUTDOWN:
-        #         self.loop.run_until_complete ( self.channel.close() )
-        # except:
-        #     pass
+        pass
 
     def nonce ( self ):
         return time.monotonic_ns()

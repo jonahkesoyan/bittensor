@@ -26,6 +26,7 @@ class DendriteForwardCall( bittensor.DendriteCall ):
     name: str = "text_prompting_forward"
     is_forward: bool = True
     completion: str = "" # To be filled.
+    route: str = "/TextToCompletion/Forward/"
 
     def __init__(
         self,
@@ -44,20 +45,14 @@ class DendriteForwardCall( bittensor.DendriteCall ):
 
     def __str__(self) -> str: return self.__repr__()
 
-    def get_callable( self ) -> Callable:
-        return bittensor.grpc.TextPromptingStub( self.dendrite.channel ).Forward
-
-    def get_request_proto( self ) -> bittensor.proto.ForwardTextPromptingRequest:
-        return bittensor.ForwardTextPromptingRequest( timeout = self.timeout, messages = self.packed_messages )
-    
-    def get_fastapi_payload( self ) -> Dict:
+    def get_fastapi_request_payload( self ) -> Dict:
         return {
             'timeout': self.timeout,
             'messages': self.packed_messages
         }
 
-    def apply_response_proto( self, response_proto: bittensor.ForwardTextPromptingResponse ):
-        self.completion = response_proto.response
+    def apply_fast_api_response( self, response: Dict ):
+        self.completion = response.get
 
     def get_inputs_shape(self) -> torch.Size:
         return torch.Size( [len(message) for message in self.packed_messages] )
@@ -88,6 +83,7 @@ class DendriteBackwardCall( bittensor.DendriteCall ):
 
     name: str = "text_prompting_backward"
     is_forward: bool = False
+    route: str = "/TextToCompletion/Backward/"
 
     def __init__(
         self,
@@ -110,15 +106,6 @@ class DendriteBackwardCall( bittensor.DendriteCall ):
 
     def __str__(self) -> str: return self.__repr__()
 
-    def get_callable( self ) -> Callable:
-        return bittensor.grpc.TextPromptingStub( self.dendrite.channel ).Backward
-
-    def get_request_proto( self ) -> bittensor.proto.BackwardTextPromptingRequest:
-        return bittensor.BackwardTextPromptingRequest( messages = self.packed_messages, response = self.completion, rewards = self.rewards, timeout = self.timeout )
-
-    def apply_response_proto( self, response_proto: bittensor.ForwardTextPromptingResponse ):
-        pass
-
     def get_inputs_shape(self) -> torch.Size:
         return torch.Size( [len(message) for message in self.packed_messages] )
 
@@ -128,45 +115,12 @@ class DendriteBackwardCall( bittensor.DendriteCall ):
 
 class TextPromptingDendrite( bittensor.Dendrite ):
 
-    def get_stub(self, channel) -> Callable:
-        return bittensor.grpc.TextPromptingStub(channel)
-
-    async def async_fast_api_forward(
-            self,
-            role: str,
-            message: str,
-            timeout: float = bittensor.__blocktime__,
-        ) -> str:
-        forward_call = DendriteForwardCall(
-            dendrite = self,
-            messages = [message],
-            roles = [role],
-            timeout = timeout,
-        )
-        response_call = await self.apply( dendrite_call = forward_call )
-        return response_call.completion
-
-    def fast_api_forward(
-            self,
-            role: str,
-            message: str,
-            timeout: float = bittensor.__blocktime__,
-        ) -> Union[ str, DendriteForwardCall ]:
-        forward_call = DendriteForwardCall(
-            dendrite = self,
-            messages = [message],
-            roles = [role],
-            timeout = timeout,
-        )
-        response_call = self.loop.run_until_complete( self.apply( dendrite_call = forward_call ) )
-        return response_call.completion
-
     def forward(
             self,
             roles: List[ str ] ,
             messages: List[ str ],
             timeout: float = bittensor.__blocktime__,
-            return_call:bool = True,
+            return_call: bool = True,
         ) -> Union[ str, DendriteForwardCall ]:
         forward_call = DendriteForwardCall(
             dendrite = self,
@@ -230,7 +184,3 @@ class TextPromptingDendrite( bittensor.Dendrite ):
             timeout = timeout,
         )
         return await self.apply( dendrite_call = backward_call )
-
-
-
-

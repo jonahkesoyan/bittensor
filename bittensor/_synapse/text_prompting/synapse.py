@@ -132,12 +132,9 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
     def __init__(self, axon: "bittensor.axon" ):
         super().__init__( axon = axon )
         self.axon = axon
-        bittensor.grpc.add_TextPromptingServicer_to_server( self, self.axon.server )
-
-        # Add FastAPI routes.
         self.router = APIRouter()
         self.router.add_api_route( "/TextToCompletion/Forward/", self.fast_api_forward_text_to_completion, methods = ["GET", "POST"])
-        self.router.add_api_route( "/TextToCompletion/Backward", self.fast_api_backward_text_to_completion, methods = ["GET"])
+        self.router.add_api_route( "/TextToCompletion/Backward/", self.fast_api_backward_text_to_completion, methods = ["GET"])
         self.axon.fastapi_app.include_router( self.router )
 
     @abstractmethod
@@ -156,13 +153,3 @@ class TextPromptingSynapse( bittensor.Synapse, bittensor.grpc.TextPromptingServi
 
     def fast_api_backward_text_to_completion( self ):
         raise NotImplementedError('Not Implemented')
-
-    def Forward( self, request: bittensor.proto.ForwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.ForwardTextPromptingResponse:
-        call = SynapseForward( self, request, self.forward, context )
-        bittensor.logging.trace( 'Forward: {} '.format( call ) )
-        return self.apply( call = call )
-
-    def Backward( self, request: bittensor.proto.BackwardTextPromptingRequest, context: grpc.ServicerContext ) -> bittensor.proto.BackwardTextPromptingResponse:
-        call = SynapseBackward( self, request, self.backward, context )
-        bittensor.logging.trace( 'Backward: {}'.format( call ) )
-        return self.apply( call = call )

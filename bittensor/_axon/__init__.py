@@ -23,20 +23,25 @@ import torch
 import argparse
 import bittensor
 
+# os.environ["UVICORN_LOOP"] = "asyncio"
+
 from dataclasses import dataclass
 from substrateinterface import Keypair
 import bittensor.utils.networking as net
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Optional, List
 
 import time
 import threading
 import contextlib
 import uvicorn
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
-from starlette.requests import Request
+from fastapi import FastAPI, APIRouter, Request, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
 
 class FastAPIThreadedServer(uvicorn.Server):
     """ FastAPI server that runs in a thread."""
+
     should_exit: bool = False
     is_running: bool = False
 
@@ -71,27 +76,30 @@ class FastAPIThreadedServer(uvicorn.Server):
         if self.is_running:
             self.should_exit = True
 
+
 class axon:
     """ Axon object for serving synapse receptors. """
 
-    def info(self) -> 'axon_info':
+    def info(self) -> "axon_info":
         """Returns the axon info object associate with this axon."""
         return axon_info(
-            version = bittensor.__version_as_int__,
-            ip = self.external_ip,
-            ip_type = 4,
-            port = self.external_fast_api_port,
-            hotkey = self.wallet.hotkey.ss58_address,
-            coldkey = self.wallet.coldkeypub.ss58_address,
-            protocol = 4,
-            placeholder1 = 0,
-            placeholder2 = 0,
+            version=bittensor.__version_as_int__,
+            ip=self.external_ip,
+            ip_type=4,
+            port=self.external_fast_api_port,
+            hotkey=self.wallet.hotkey.ss58_address,
+            coldkey=self.wallet.coldkeypub.ss58_address,
+            protocol=4,
+            placeholder1=0,
+            placeholder2=0,
         )
 
     def fast_api_info(self) -> dict:
         fastinfo = self.info().__dict__
-        fastinfo.update({'fast_api_port': self.config.axon.fast_api_port})
-        fastinfo.update({'external_fast_api_port': self.config.axon.external_fast_api_port})
+        fastinfo.update({"fast_api_port": self.config.axon.fast_api_port})
+        fastinfo.update(
+            {"external_fast_api_port": self.config.axon.external_fast_api_port}
+        )
         return fastinfo
 
     def __init__(
@@ -143,14 +151,20 @@ class axon:
         config = copy.deepcopy(config)
         config.axon.port = port if port is not None else config.axon.port
         config.axon.ip = ip if ip is not None else config.axon.ip
-        config.axon.external_ip = external_ip if external_ip is not None else config.axon.external_ip
+        config.axon.external_ip = (
+            external_ip if external_ip is not None else config.axon.external_ip
+        )
         config.axon.external_port = (
             external_port if external_port is not None else config.axon.external_port
         )
         config.axon.disable_fast_api = disable_fast_api
         config.axon.fast_api_port = fast_api_port or config.axon.fast_api_port
-        config.axon.external_fast_api_port = external_fast_api_port or config.axon.external_fast_api_port
-        config.axon.max_workers = max_workers if max_workers is not None else config.axon.max_workers
+        config.axon.external_fast_api_port = (
+            external_fast_api_port or config.axon.external_fast_api_port
+        )
+        config.axon.max_workers = (
+            max_workers if max_workers is not None else config.axon.max_workers
+        )
         config.axon.maximum_concurrent_rpcs = (
             maximum_concurrent_rpcs
             if maximum_concurrent_rpcs is not None
@@ -162,7 +176,11 @@ class axon:
         # Build axon objects.
         self.ip = self.config.axon.ip
         self.port = self.config.axon.port
-        self.external_ip = self.config.axon.external_ip if self.config.axon.external_ip != None else bittensor.utils.networking.get_external_ip()
+        self.external_ip = (
+            self.config.axon.external_ip
+            if self.config.axon.external_ip != None
+            else bittensor.utils.networking.get_external_ip()
+        )
         self.external_fast_api_port = (
             self.config.axon.external_fast_api_port
             if self.config.axon.external_fast_api_port != None
@@ -175,19 +193,25 @@ class axon:
         self.receiver_hotkey = self.wallet.hotkey.ss58_address
 
         # Instantiate FastAPI
+        self.fastapi_app = FastAPI()
         # Add interceptor for fastAPI queries.
-        self.fast_interceptor = FastAuthInterceptor(receiver_hotkey=self.receiver_hotkey) 
-        # All requests will depend on the fast_interceptor.
-        self.fastapi_app = FastAPI(dependencies=[Depends(self.fast_interceptor)])
-        self.fast_config = uvicorn.Config( self.fastapi_app, host = '0.0.0.0', port = self.config.axon.fast_api_port, log_level="info")
-        self.fast_server = FastAPIThreadedServer( config = self.fast_config )
+        # NOTE: All requests will depend on the fast_interceptor.
+        self.fastapi_app.add_middleware(
+            FastAuthInterceptor, receiver_hotkey=self.receiver_hotkey
+        )
+        self.fast_config = uvicorn.Config(
+            self.fastapi_app,
+            host="0.0.0.0",
+            port=self.config.axon.fast_api_port,
+            log_level="info",
+        )
+        self.server = FastAPIThreadedServer(config=self.fast_config)
         self.router = APIRouter()
         self.router.add_api_route("/", self.fast_api_info, methods=["GET", "POST"])
         self.fastapi_app.include_router(self.router)
 
         # Build priority thread pool
         self.priority_threadpool = bittensor.prioritythreadpool(config=self.config.axon)
-
 
     @classmethod
     def config(cls) -> "bittensor.Config":
@@ -244,6 +268,19 @@ class axon:
                 default=bittensor.defaults.axon.external_ip,
             )
             parser.add_argument(
+                "--" + prefix_str + "axon.fast_api_port",
+                type=int,
+                help="""The local port this axon fast api endpoint is bound to. i.e. 8092""",
+                default=bittensor.defaults.axon.fast_api_port,
+            )
+            parser.add_argument(
+                "--" + prefix_str + "axon.external_fast_api_port",
+                type=int,
+                required=False,
+                help="""The public fast api port this axon broadcasts to the network. i.e. 8092""",
+                default=bittensor.defaults.axon.external_fast_api_port,
+            )
+            parser.add_argument(
                 "--" + prefix_str + "axon.max_workers",
                 type=int,
                 help="""The maximum number connection handler threads working simultaneously on this endpoint.
@@ -267,23 +304,34 @@ class axon:
         defaults.axon.port = (
             os.getenv("BT_AXON_PORT") if os.getenv("BT_AXON_PORT") is not None else 8091
         )
-        defaults.axon.ip = os.getenv("BT_AXON_IP") if os.getenv("BT_AXON_IP") is not None else "[::]"
+        defaults.axon.ip = (
+            os.getenv("BT_AXON_IP") if os.getenv("BT_AXON_IP") is not None else "[::]"
+        )
+        defaults.axon.fast_api_port = os.getenv("BT_AXON_FAST_API_PORT") or 8092
         defaults.axon.external_port = (
             os.getenv("BT_AXON_EXTERNAL_PORT")
             if os.getenv("BT_AXON_EXTERNAL_PORT") is not None
             else None
         )
+        defaults.axon.external_fast_api_port = (
+            os.getenv("BT_AXON_EXTERNAL_FAST_API_PORT") or None
+        )
         defaults.axon.external_ip = (
-            os.getenv("BT_AXON_EXTERNAL_IP") if os.getenv("BT_AXON_EXTERNAL_IP") is not None else None
+            os.getenv("BT_AXON_EXTERNAL_IP")
+            if os.getenv("BT_AXON_EXTERNAL_IP") is not None
+            else None
         )
         defaults.axon.max_workers = (
-            os.getenv("BT_AXON_MAX_WORERS") if os.getenv("BT_AXON_MAX_WORERS") is not None else 10
+            os.getenv("BT_AXON_MAX_WORERS")
+            if os.getenv("BT_AXON_MAX_WORERS") is not None
+            else 10
         )
         defaults.axon.maximum_concurrent_rpcs = (
             os.getenv("BT_AXON_MAXIMUM_CONCURRENT_RPCS")
             if os.getenv("BT_AXON_MAXIMUM_CONCURRENT_RPCS") is not None
             else 400
         )
+        defaults.axon.disable_fast_api = os.getenv("BT_AXON_DISABLE_FAST_API") or False
 
     @classmethod
     def check_config(cls, config: "bittensor.Config"):
@@ -311,47 +359,25 @@ class axon:
         self.stop()
 
     def start(self) -> "bittensor.axon":
-        r"""Starts the standalone axon GRPC server thread."""
-        if self.server is not None:
-            self.server.stop(grace=1)
+        r"""Starts the standalone axon fastAPI server thread."""
+        # if self.server is not None:
+        #     self.server.stop()
         self.server.start()
         self.started = True
         return self
 
     def stop(self) -> "bittensor.axon":
-        r"""Stop the axon grpc server."""
+        r"""Stop the axon fastAPI server."""
         if hasattr(self, "server") and self.server is not None:
-            self.server.stop(grace=1)
+            self.server.stop()
         self.started = False
 
 
-class FastAuthInterceptor:
-    def __init__(self, receiver_hotkey: str):
+class FastAuthInterceptor(BaseHTTPMiddleware):
+    def __init__(self, app, receiver_hotkey):
+        super().__init__(app)
         self.nonces = {}
         self.receiver_hotkey = receiver_hotkey
-
-    async def __call__(self, request: Request, signature: Optional[str] = None, version: Optional[str] = None):
-        if signature is None or version is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Request signature or version missing"
-            )
-        if int(version) < 510:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Incorrect Version"
-            )
-
-        parts = self.parse_signature_v2(signature)
-        if parts is not None:
-            nonce, sender_hotkey, signature, receptor_uuid = parts
-            self.check_signature(nonce, sender_hotkey, signature, receptor_uuid)
-            return True
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Unknown signature format"
-        )
 
     def parse_signature_v2(self, signature: str) -> Optional[Tuple[int, str, str, str]]:
         r"""Attempts to parse a signature using the v2 format"""
@@ -367,34 +393,64 @@ class FastAuthInterceptor:
         receptor_uuid = parts[3]
         return (nonce, sender_hotkey, signature, receptor_uuid)
 
-    def check_signature(
-        self,
-        nonce: int,
-        sender_hotkey: str,
-        signature: str,
-        receptor_uuid: str,
-    ):
-        r"""verification of signature in metadata. Uses the pubkey and nonce"""
-        keypair = Keypair(ss58_address=sender_hotkey)
-        # Build the expected message which was used to build the signature.
-        message = f"{nonce}.{sender_hotkey}.{self.receiver_hotkey}.{receptor_uuid}"
+    def parse_signature(self, metadata: Dict[str, str]) -> Tuple[int, str, str, str]:
+        r"""Attempts to parse a signature from the metadata"""
+        signature = metadata.get("bittensor-signature")
+        version = metadata.get("bittensor-version")
+        if signature is None:
+            raise HTTPException(status_code=400, detail="Request signature missing")
+        if int(version) < 510:
+            raise HTTPException(status_code=400, detail="Incorrect Version")
+        parts = self.parse_signature_v2(signature)
+        if parts is not None:
+            return parts
+        raise HTTPException(status_code=400, detail="Unknown signature format")
 
-        # Build the key which uniquely identifies the endpoint that has signed
-        # the message.
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
+        metadata = dict(request.headers)
+        try:
+            (nonce, sender_hotkey, signature, receptor_uuid) = self.parse_signature(
+                metadata
+            )
+        except HTTPException as e:
+            # Error parsing signature
+            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+        except Exception as e:
+            # Some other exception occurred
+            return JSONResponse({"detail": str(e)}, status_code=400)
+
+        try:
+            self.check_signature(int(nonce), sender_hotkey, signature, receptor_uuid)
+        except HTTPException as e:
+            # Error checking signature
+            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+        except Exception as e:
+            # Some other exception occurred
+            return JSONResponse({"detail": str(e)}, status_code=400)
+
+        response = await call_next(request)
+        return response
+
+    def check_signature(
+        self, nonce: int, sender_hotkey: str, signature: str, receptor_uuid: str
+    ):
+        keypair = Keypair(ss58_address=sender_hotkey)
+        message = f"{nonce}.{sender_hotkey}.{self.receiver_hotkey}.{receptor_uuid}"
         endpoint_key = f"{sender_hotkey}:{receptor_uuid}"
 
         if endpoint_key in self.nonces.keys():
             previous_nonce = self.nonces[endpoint_key]
-            # Nonces must be strictly monotonic over time.
             if nonce <= previous_nonce:
-                raise Exception("Nonce is too small")
+                raise HTTPException(status_code=403, detail="Nonce is too small")
 
         if not keypair.verify(message, signature):
-            raise Exception("Signature mismatch")
+            raise HTTPException(status_code=403, detail="Signature mismatch")
+
         self.nonces[endpoint_key] = nonce
 
 
 METADATA_BUFFER_SIZE = 250
+
 
 @dataclass
 class axon_info:
@@ -405,52 +461,68 @@ class axon_info:
     ip_type: int
     hotkey: str
     coldkey: str
-    protocol:int = 4,
-    placeholder1:int = 0,
-    placeholder2:int = 0,
+    protocol: int = 4
+    placeholder1: int = 0
+    placeholder2: int = 0
 
     @property
     def is_serving(self) -> bool:
         """ True if the endpoint is serving. """
-        if self.ip == '0.0.0.0': return False
-        else:return True
+        if self.ip == "0.0.0.0":
+            return False
+        else:
+            return True
 
     def ip_str(self) -> str:
         """ Return the whole ip as string """
         return net.ip__str__(self.ip_type, self.ip, self.port)
 
-    def __eq__ (self, other: 'axon_info'):
-        if other == None: return False
-        if self.version == other.version and self.ip == other.ip and self.port == other.port and self.ip_type == other.ip_type and self.coldkey == other.coldkey and self.hotkey == other.hotkey: return True
-        else: return False
+    def __eq__(self, other: "axon_info"):
+        if other == None:
+            return False
+        if (
+            self.version == other.version
+            and self.ip == other.ip
+            and self.port == other.port
+            and self.ip_type == other.ip_type
+            and self.coldkey == other.coldkey
+            and self.hotkey == other.hotkey
+        ):
+            return True
+        else:
+            return False
 
     def __str__(self):
-        return "axon_info( {}, {}, {}, {} )".format( str(self.ip_str()), str(self.hotkey), str(self.coldkey), self.version)
+        return "axon_info( {}, {}, {}, {} )".format(
+            str(self.ip_str()), str(self.hotkey), str(self.coldkey), self.version
+        )
 
     def __repr__(self):
         return self.__str__()
 
     @classmethod
-    def from_neuron_info(cls, neuron_info: dict ) -> 'axon_info':
+    def from_neuron_info(cls, neuron_info: dict) -> "axon_info":
         """ Converts a dictionary to an axon_info object. """
         return cls(
-            version = neuron_info['axon_info']['version'],
-            ip = bittensor.utils.networking.int_to_ip(int(neuron_info['axon_info']['ip'])),
-            port = neuron_info['axon_info']['port'],
-            ip_type = neuron_info['axon_info']['ip_type'],
-            hotkey = neuron_info['hotkey'],
-            coldkey = neuron_info['coldkey'],
+            version=neuron_info["axon_info"]["version"],
+            ip=bittensor.utils.networking.int_to_ip(
+                int(neuron_info["axon_info"]["ip"])
+            ),
+            port=neuron_info["axon_info"]["port"],
+            ip_type=neuron_info["axon_info"]["ip_type"],
+            hotkey=neuron_info["hotkey"],
+            coldkey=neuron_info["coldkey"],
         )
 
-    def to_parameter_dict( self ) -> 'torch.nn.ParameterDict':
+    def to_parameter_dict(self) -> "torch.nn.ParameterDict":
         r""" Returns a torch tensor of the subnet info.
         """
-        return torch.nn.ParameterDict(
-            self.__dict__
-        )
+        return torch.nn.ParameterDict(self.__dict__)
 
     @classmethod
-    def from_parameter_dict( cls, parameter_dict: 'torch.nn.ParameterDict' ) -> 'axon_info':
+    def from_parameter_dict(
+        cls, parameter_dict: "torch.nn.ParameterDict"
+    ) -> "axon_info":
         r""" Returns an axon_info object from a torch parameter_dict.
         """
-        return cls( **dict(parameter_dict) )
+        return cls(**dict(parameter_dict))
